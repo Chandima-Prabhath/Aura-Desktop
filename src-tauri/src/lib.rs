@@ -165,11 +165,35 @@ fn initialize_project(dir_path: String) -> Result<(), String> {
     Ok(())
 }
 
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_shell::process::CommandEvent;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_shell::init())
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let sidecar_command = app_handle.shell().sidecar("binaries/aura-cli").unwrap();
+                let (mut rx, _child) = sidecar_command.spawn().unwrap();
+
+                while let Some(event) = rx.recv().await {
+                    match event {
+                        CommandEvent::Stdout(line) => {
+                            println!("[aura-cli] stdout: {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Stderr(line) => {
+                            eprintln!("[aura-cli] stderr: {}", String::from_utf8_lossy(&line));
+                        }
+                        _ => {}
+                    }
+                }
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             read_i18n_files,
