@@ -1,7 +1,7 @@
 {
   "name": "aura-desktop",
   "private": false,
-  "version": "1.0.0",
+  "version": "0.0.2",
   "description": "🚀 A modern desktop app boilerplate built with Tauri v2, Tailwind CSS v4, shadcn/ui, React 18, and TypeScript. Features glassmorphism design, blazing-fast performance, and developer experience.",
   "type": "module",
   "keywords": [

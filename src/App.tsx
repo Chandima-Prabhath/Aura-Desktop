@@ -1,82 +1,113 @@
-import { useState, useEffect } from "react";
-import { TranslationManager } from "@/components/TranslationManager";
-import { WelcomeScreen } from "@/components/WelcomeScreen";
-import { Toaster } from "sonner";
-import { AnimatePresence, motion } from "framer-motion";
+// src/App.tsx
+import { useState } from 'react';
+import Sidebar from './components/Sidebar';
+import TopBar from './components/TopBar';
+import HomeView from './components/HomeView';
+import DetailsView from './components/DetailsView';
+import DownloadsView from './components/DownloadsView';
+import SettingsView from './components/SettingsView';
 
-type View = 'welcome' | 'editor';
+// Mock Data as defined in the mockui.html
+const MOCK_DB = [
+    { id: 1, title: "Cyberpunk: Edgerunners", eps: 10, img: "https://picsum.photos/seed/cyber/300/420", desc: "In a dystopia riddled with corruption and cybernetic implants, a talented but reckless street kid strives to become a mercenary outlaw." },
+    { id: 2, title: "That Time I Got Reincarnated", eps: 48, img: "https://picsum.photos/seed/slime/300/420", desc: "Corporate worker Mikami Satoru is stabbed by a random killer, and is reborn into an alternate world." },
+    { id: 3, title: "Attack on Titan", eps: 87, img: "https://picsum.photos/seed/titan/300/420", desc: "After his hometown is destroyed and his mother is killed, young Eren Jaeger vows to cleanse the earth of the giant humanoid Titans." },
+    { id: 4, title: "Jujutsu Kaisen", eps: 48, img: "https://picsum.photos/seed/jjk/300/420", desc: "A boy swallows a cursed talisman - the finger of a demon - and becomes cursed himself." },
+    { id: 5, title: "Demon Slayer: Kimetsu no Yaiba", eps: 55, img: "https://picsum.photos/seed/ds/300/420", desc: "A family is attacked by demons and only two members survive - Tanjiro and his sister Nezuko." },
+    { id: 6, title: "Solo Leveling", eps: 12, img: "https://picsum.photos/seed/solo/300/420", desc: "In a world where hunters must battle deadly monsters to protect humanity, Sung Jinwoo is the weakest of them all." },
+];
+
+type View = 'home' | 'details' | 'downloads' | 'settings';
+
+interface Anime {
+    id: number;
+    title: string;
+    eps: number;
+    img: string;
+    desc: string;
+}
+
+interface Download {
+    id: number;
+    title: string;
+    prog: number;
+}
+
+interface Toast {
+    id: number;
+    message: string;
+    type: 'success' | 'warning' | 'error' | 'info';
+}
 
 function App() {
-  const [currentView, setCurrentView] = useState<View>('welcome');
-  const [projectPath, setProjectPath] = useState<string>("");
+    const [currentView, setCurrentView] = useState<View>('home');
+    const [activeAnime, setActiveAnime] = useState<Anime | null>(null);
+    const [downloads, setDownloads] = useState<Download[]>([]);
+    const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Theme State
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem("tm_theme") === "dark" || document.documentElement.classList.contains('dark');
-  });
+    const showToast = (message: string, type: Toast['type']) => {
+        const newToast: Toast = { id: Date.now(), message, type };
+        setToasts(prev => [...prev, newToast]);
+        setTimeout(() => {
+            setToasts(allToasts => allToasts.filter(t => t.id !== newToast.id));
+        }, 3500);
+    };
 
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem("tm_theme", "dark");
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem("tm_theme", "light");
-    }
-  }, [isDarkMode]);
+    const handleNavigate = (view: string, data?: any) => {
+        setCurrentView(view as View);
+        if (view === 'details' && data) {
+            setActiveAnime(data);
+        }
+    };
 
-  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+    const handleAddDownloads = (anime: Anime, episodes: number[]) => {
+        if (episodes.length === 0) {
+            showToast('Select episodes first', 'warning');
+            return;
+        }
+        const newDownloads = episodes.map(ep => ({
+            id: Math.random(),
+            title: `${anime.title} Ep ${ep}.mp4`,
+            prog: 0
+        }));
+        setDownloads(prev => [...prev, ...newDownloads]);
+        showToast(`Added ${episodes.length} tasks`, 'success');
+        setCurrentView('downloads');
+    };
 
-  const handleOpenProject = (path: string) => {
-    setProjectPath(path);
-    setCurrentView('editor');
-  };
+    const renderView = () => {
+        switch (currentView) {
+            case 'home':
+                return <HomeView MOCK_DB={MOCK_DB} onNavigate={handleNavigate} showToast={showToast} />;
+            case 'details':
+                return <DetailsView anime={activeAnime} onAddDownloads={handleAddDownloads} />;
+            case 'downloads':
+                return <DownloadsView downloads={downloads} setDownloads={setDownloads} />;
+            case 'settings':
+                return <SettingsView showToast={showToast} />;
+            default:
+                return <HomeView MOCK_DB={MOCK_DB} onNavigate={handleNavigate} showToast={showToast} />;
+        }
+    };
 
-  const handleNewProject = (path: string) => {
-    setProjectPath(path);
-    setCurrentView('editor');
-  };
+    const pageTitle = currentView.charAt(0).toUpperCase() + currentView.slice(1);
 
-  return (
-    <>
-      <Toaster position="top-center" richColors theme={isDarkMode ? 'dark' : 'light'} />
-      <div className="min-h-screen bg-background text-foreground font-sans antialiased overflow-hidden transition-colors duration-300">
-        <AnimatePresence mode="wait">
-          {currentView === 'welcome' ? (
-            <motion.div
-              key="welcome"
-              exit={{ opacity: 0, y: -20, filter: "blur(10px)" }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              className="absolute inset-0"
-            >
-              <WelcomeScreen
-                onOpenProject={handleOpenProject}
-                onNewProject={handleNewProject}
-                isDarkMode={isDarkMode}
-                toggleTheme={toggleTheme}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="editor"
-              initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              className="absolute inset-0 flex flex-col items-center p-4 md:p-8"
-            >
-              <div className="max-w-[1600px] w-full h-full space-y-6 flex flex-col">
-                <TranslationManager
-                  initialPath={projectPath}
-                  isDarkMode={isDarkMode}
-                  toggleTheme={toggleTheme}
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </>
-  );
+    return (
+        <div style={{ display: 'flex', height: '100vh' }}>
+            <Sidebar activeView={currentView} onNavigate={handleNavigate} />
+            <main className="main-content">
+                <TopBar pageTitle={pageTitle} />
+                {renderView()}
+            </main>
+            <div className="toast-container">
+                {toasts.map(toast => (
+                    <div key={toast.id} className={`toast toast-${toast.type}`}>
+                        {toast.message}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 }
 
 export default App;
