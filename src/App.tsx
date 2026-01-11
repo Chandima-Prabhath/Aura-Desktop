@@ -6,6 +6,7 @@ import HomeView from './components/HomeView';
 import DetailsView from './components/DetailsView';
 import DownloadsView from './components/DownloadsView';
 import SettingsView from './components/SettingsView';
+import { AnimeSearchResult } from './lib/api/types';
 
 // Mock Data as defined in the mockui.html
 const MOCK_DB = [
@@ -18,14 +19,6 @@ const MOCK_DB = [
 ];
 
 type View = 'home' | 'details' | 'downloads' | 'settings';
-
-interface Anime {
-    id: number;
-    title: string;
-    eps: number;
-    img: string;
-    desc: string;
-}
 
 interface Download {
     id: number;
@@ -41,7 +34,7 @@ interface Toast {
 
 function App() {
     const [currentView, setCurrentView] = useState<View>('home');
-    const [activeAnime, setActiveAnime] = useState<Anime | null>(null);
+    const [activeAnime, setActiveAnime] = useState<AnimeSearchResult | null>(null);
     const [downloads, setDownloads] = useState<Download[]>([]);
     const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -60,18 +53,7 @@ function App() {
         }
     };
 
-    const handleAddDownloads = (anime: Anime, episodes: number[]) => {
-        if (episodes.length === 0) {
-            showToast('Select episodes first', 'warning');
-            return;
-        }
-        const newDownloads = episodes.map(ep => ({
-            id: Math.random(),
-            title: `${anime.title} Ep ${ep}.mp4`,
-            prog: 0
-        }));
-        setDownloads(prev => [...prev, ...newDownloads]);
-        showToast(`Added ${episodes.length} tasks`, 'success');
+    const handleDownloadsAdded = () => {
         setCurrentView('downloads');
     };
 
@@ -80,9 +62,9 @@ function App() {
             case 'home':
                 return <HomeView onNavigate={handleNavigate} showToast={showToast} />;
             case 'details':
-                return <DetailsView anime={activeAnime} onAddDownloads={handleAddDownloads} />;
+                return <DetailsView anime={activeAnime} onDownloadsAdded={handleDownloadsAdded} showToast={showToast} />;
             case 'downloads':
-                return <DownloadsView downloads={downloads} setDownloads={setDownloads} />;
+                return <DownloadsView />;
             case 'settings':
                 return <SettingsView showToast={showToast} />;
             default:
