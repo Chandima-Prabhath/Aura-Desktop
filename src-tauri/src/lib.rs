@@ -177,18 +177,29 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                let sidecar_command = app_handle.shell().sidecar("binaries/aura-cli").unwrap();
-                let (mut rx, _child) = sidecar_command.spawn().unwrap();
-
-                while let Some(event) = rx.recv().await {
-                    match event {
-                        CommandEvent::Stdout(line) => {
-                            println!("[aura-cli] stdout: {}", String::from_utf8_lossy(&line));
+                match app_handle.shell().sidecar("aura-api") {
+                    Ok(sidecar_command) => {
+                        match sidecar_command.spawn() {
+                            Ok((mut rx, _child)) => {
+                                while let Some(event) = rx.recv().await {
+                                    match event {
+                                        CommandEvent::Stdout(line) => {
+                                            println!("[aura-api] stdout: {}", String::from_utf8_lossy(&line));
+                                        }
+                                        CommandEvent::Stderr(line) => {
+                                            eprintln!("[aura-api] stderr: {}", String::from_utf8_lossy(&line));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to spawn sidecar: {}", e);
+                            }
                         }
-                        CommandEvent::Stderr(line) => {
-                            eprintln!("[aura-cli] stderr: {}", String::from_utf8_lossy(&line));
-                        }
-                        _ => {}
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to create sidecar command: {}", e);
                     }
                 }
             });
