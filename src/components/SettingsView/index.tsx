@@ -18,7 +18,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
                         <input
                             type="text"
                             className="input-pill"
-                            defaultValue="C:UsersChandimaDownloadsAnime"
+                            defaultValue="C:\Users\Chandima\Downloads\Anime"
                             style={{ width: '100%' }}
                         />
                     </div>
