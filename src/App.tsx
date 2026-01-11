@@ -78,7 +78,7 @@ function App() {
     const renderView = () => {
         switch (currentView) {
             case 'home':
-                return <HomeView MOCK_DB={MOCK_DB} onNavigate={handleNavigate} showToast={showToast} />;
+                return <HomeView onNavigate={handleNavigate} showToast={showToast} />;
             case 'details':
                 return <DetailsView anime={activeAnime} onAddDownloads={handleAddDownloads} />;
             case 'downloads':
