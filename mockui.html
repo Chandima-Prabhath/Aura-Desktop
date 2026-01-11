@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura - Anime Downloader</title>
+    <style>
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            /* Palette - Dark Modern Native */
+            --bg-app: #0b0c10;      
+            --bg-glass: rgba(20, 21, 26, 0.85); 
+            --bg-card: #1f2128;     
+            --bg-card-hover: #262932; 
+            --primary: #66fcf1;     
+            --primary-dim: #45a29e;
+            --secondary: #c5c6c7;   
+            --text-main: #ffffff;
+            --text-muted: #8b9bb4;
+            --border: rgba(255, 255, 255, 0.08);
+            --shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+            --font-family: 'Segoe UI', Inter, system-ui, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+        
+        /* CRITICAL FIX: Force full width height on HTML and Body */
+        html, body {
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-app);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            user-select: none;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(102, 252, 241, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(69, 162, 158, 0.05) 0%, transparent 20%);
+        }
+
+        /* --- SCROLLBARS --- */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary-dim); }
+
+        /* --- ICONS --- */
+        .icon { width: 20px; height: 20px; fill: currentColor; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 80px;
+            height: 100%; /* Ensure full height */
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 30px;
+            padding-bottom: 20px;
+            z-index: 20;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+
+        .app-logo {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(102, 252, 241, 0.2);
+            transition: transform 0.2s;
+        }
+        .app-logo:hover { transform: scale(1.05); }
+        .app-logo img { width: 100%; height: 100%; object-fit: cover; }
+
+        .nav-group {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            align-items: center;
+        }
+
+        .nav-item {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 14px;
+            color: var(--text-muted);
+            cursor: pointer;
+            margin-bottom: 16px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-item:hover { 
+            background: rgba(255,255,255,0.05); 
+            color: var(--primary);
+        }
+        
+        .nav-item.active { 
+            background: rgba(102, 252, 241, 0.15); 
+            color: var(--primary);
+            box-shadow: 0 0 15px rgba(102, 252, 241, 0.1);
+        }
+
+        .spacer { flex-grow: 1; }
+
+        .nav-item::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 70px;
+            background: #222;
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+            border: 1px solid #333;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 50;
+        }
+        .nav-item:hover::after { opacity: 1; }
+
+        /* --- TOP BAR --- */
+        .top-bar {
+            height: 70px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            z-index: 15;
+            width: 100%;
+        }
+
+        .page-title { 
+            font-size: 20px; 
+            font-weight: 700; 
+            letter-spacing: 0.5px;
+        }
+        
+        .notif-container {
+            position: relative;
+            cursor: pointer;
+        }
+        .notif-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 8px;
+            height: 8px;
+            background: #ff4757;
+            border-radius: 50%;
+            border: 2px solid var(--bg-app);
+        }
+        .notif-dropdown {
+            position: absolute;
+            top: 50px;
+            right: 0;
+            width: 300px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            padding: 10px;
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .notif-dropdown.show { display: flex; animation: fadeIn 0.2s; }
+        
+        .notif-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: flex;
+            gap: 10px;
+            align-items: start;
+            color: var(--secondary);
+        }
+        .notif-item:hover { background: rgba(255,255,255,0.05); }
+        .notif-dot {
+            width: 6px; height: 6px; border-radius: 50%; background: var(--primary);
+            margin-top: 6px; flex-shrink: 0;
+        }
+
+        /* --- MAIN VIEW --- */
+        .main-content {
+            flex: 1;
+            width: 100%; /* Explicit width */
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: transparent;
+            overflow: hidden; /* Prevent body scroll */
+        }
+
+        .view-container {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            padding: 30px;
+            display: none;
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .view-container.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- UPDATE BANNER --- */
+        .update-banner {
+            background: linear-gradient(90deg, rgba(124, 58, 237, 0.15), rgba(102, 252, 241, 0.05));
+            border: 1px solid var(--primary-dim);
+            padding: 16px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .banner-content h4 { color: var(--primary); font-size: 14px; margin-bottom: 4px; }
+        .banner-content p { color: var(--text-muted); font-size: 12px; }
+        .close-banner { cursor: pointer; color: var(--text-muted); opacity: 0.6; }
+        .close-banner:hover { opacity: 1; color: #fff; }
+
+        /* --- HOME COMPONENTS --- */
+        .search-section {
+            /* Increased max-width to match modern desktops better */
+            max-width: 900px; 
+            margin: 0 auto 40px auto;
+            text-align: center;
+            position: relative;
+            z-index: 5;
+            width: 100%;
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 18px 60px 18px 25px;
+            border-radius: 16px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            color: var(--text-main);
+            font-size: 16px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .search-input:focus { 
+            border-color: var(--primary); 
+            background: #23262e;
+            box-shadow: 0 0 0 4px rgba(102, 252, 241, 0.1);
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--primary);
+            color: #000;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .search-btn:hover { background: #fff; }
+
+        .section-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--secondary);
+        }
+        .section-header::before {
+            content: '';
+            display: block;
+            width: 4px;
+            height: 18px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        .featured-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 24px;
+            width: 100%;
+        }
+
+        .anime-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .anime-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-color: rgba(102, 252, 241, 0.3);
+        }
+
+        .poster-wrapper {
+            position: relative;
+            padding-top: 140%; 
+            overflow: hidden;
+        }
+
+        .anime-poster {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        
+        .anime-card:hover .anime-poster { transform: scale(1.1); }
+
+        .anime-info { padding: 16px; position: relative; z-index: 2; background: var(--bg-card); }
+        .anime-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; color: #fff; line-height: 1.4; }
+        .anime-meta { font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; }
+        
+        .badge {
+            background: rgba(255,255,255,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        /* --- DETAILS VIEW --- */
+        .details-header {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 40px;
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            max-width: 1000px; /* Constrained for readability */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .details-poster {
+            width: 200px;
+            height: 300px;
+            border-radius: 12px;
+            object-fit: cover;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .details-title { font-size: 32px; font-weight: 800; margin-bottom: 10px; color: #fff; }
+        .details-desc { color: var(--text-muted); line-height: 1.6; margin-bottom: auto; font-size: 14px; }
+        .control-bar {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .input-pill {
+            background: #111;
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            width: 140px;
+        }
+        .btn { padding: 8px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 13px; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dim)); color: #000; box-shadow: 0 4px 15px rgba(102, 252, 241, 0.3); }
+        .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+        .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+        .episodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; padding: 10px 0; }
+        .ep-checkbox { display: none; }
+        .ep-label {
+            display: flex; align-items: center; justify-content: center;
+            background: var(--bg-card); padding: 12px; border-radius: 10px;
+            cursor: pointer; border: 1px solid var(--border);
+            color: var(--text-muted); font-size: 13px; transition: all 0.2s;
+        }
+        .ep-checkbox:checked + .ep-label {
+            background: var(--primary); color: #000; border-color: var(--primary);
+            font-weight: 700; box-shadow: 0 0 10px rgba(102, 252, 241, 0.4);
+        }
+
+        /* --- DOWNLOADS VIEW --- */
+        .downloads-list { display: flex; flex-direction: column; gap: 15px; max-width: 1000px; margin: 0 auto; }
+        .download-item {
+            background: var(--bg-card); padding: 20px; border-radius: 12px;
+            border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;
+        }
+        .dl-top { display: flex; justify-content: space-between; align-items: center; }
+        .dl-name { font-weight: 600; font-size: 14px; }
+        .progress-bg { height: 6px; background: #111; border-radius: 3px; overflow: hidden; }
+        .progress-bar {
+            height: 100%; background: linear-gradient(90deg, var(--primary-dim), var(--primary));
+            width: 0%; transition: width 0.3s linear;
+        }
+
+        /* --- TOAST --- */
+        .toast-container {
+            position: fixed; bottom: 30px; right: 30px; display: flex;
+            flex-direction: column; gap: 10px; z-index: 100;
+        }
+        .toast {
+            background: rgba(30, 33, 40, 0.95); backdrop-filter: blur(10px);
+            border-left: 4px solid var(--primary); padding: 15px 25px;
+            border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            color: white; font-size: 14px; animation: slideIn 0.3s ease; border: 1px solid var(--border);
+        }
+        @keyframes slideIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+        <div class="app-logo">
+            <img src="https://z-cdn-media.chatglm.cn/files/ea457398-3990-4b36-b6fa-f4c40c00b9ee.png?auth_key=1868121977-67b2641e583a4d60b47a132d282d0f9a-0-98ec1fcd2692dc170a68493699d3ba3d" alt="Aura Logo">
+        </div>
+        
+        <div class="nav-group">
+            <div class="nav-item active" onclick="switchView('home')" data-tooltip="Home">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            </div>
+            
+            <div class="nav-item" onclick="switchView('downloads')" data-tooltip="Downloads">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            </div>
+        </div>
+        
+        <div class="spacer"></div>
+
+        <div class="nav-group">
+            <div class="nav-item" onclick="switchView('settings')" data-tooltip="Settings">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L3.16 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN -->
+    <main class="main-content">
+        <div class="top-bar">
+            <div class="page-title" id="page-title">Discover</div>
+            
+            <div class="notif-container" onclick="toggleNotifications(event)">
+                <svg class="icon" viewBox="0 0 24 24" style="color: var(--secondary)"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+                <div class="notif-badge" id="notif-dot"></div>
+                
+                <div class="notif-dropdown" id="notif-dropdown">
+                    <div class="notif-item">
+                        <div class="notif-dot"></div>
+                        <div>
+                            <strong>Update Available</strong><br>
+                            <span style="color:var(--text-muted)">Version 0.0.3 is ready to install.</span>
+                        </div>
+                    </div>
+                    <div class="notif-item">
+                        <div class="notif-dot" style="background:var(--success)"></div>
+                        <div>
+                            <strong>Download Complete</strong><br>
+                            <span style="color:var(--text-muted)">Slime Ep 12 finished.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: HOME -->
+        <div id="view-home" class="view-container active">
+            
+            <div class="update-banner" id="update-banner">
+                <div class="banner-content">
+                    <h4>New Update Available (v0.0.3)</h4>
+                    <p>Faster downloads, bug fixes, and UI improvements.</p>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button class="btn btn-primary" style="padding: 6px 16px; font-size: 12px;" onclick="showToast('Update started...', 'info')">Update Now</button>
+                    <div class="close-banner" onclick="document.getElementById('update-banner').style.display='none'">
+                        <svg class="icon" viewBox="0 0 24 24" style="width:16px; height:16px;"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="search-section">
+                <div class="search-box">
+                    <input type="text" class="search-input" id="search-input" placeholder="What do you want to watch?" oninput="performSearch()" onkeypress="handleEnter(event)">
+                    <button class="search-btn" onclick="triggerSearch()">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="trending-section">
+                <div class="section-header">Trending Now</div>
+                <div class="featured-grid" id="trending-grid"></div>
+            </div>
+
+            <div id="results-section" style="display:none;">
+                <div class="section-header">Search Results</div>
+                <div class="featured-grid" id="results-grid"></div>
+            </div>
+        </div>
+
+        <!-- VIEW: DETAILS -->
+        <div id="view-details" class="view-container"></div>
+
+        <!-- VIEW: DOWNLOADS -->
+        <div id="view-downloads" class="view-container">
+            <div class="section-header">Active Downloads</div>
+            <div class="downloads-list" id="downloads-list"></div>
+        </div>
+
+        <!-- VIEW: SETTINGS -->
+        <div id="view-settings" class="view-container">
+            <div class="details-header" style="max-width: 500px; display: block; margin-left: auto; margin-right: auto;">
+                <h2 class="details-title" style="margin-bottom: 20px;">Settings</h2>
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 12px; display: block; margin-bottom: 5px;">Download Path</label>
+                        <input type="text" class="input-pill" value="C:\Users\Chandima\Downloads\Anime" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="color: var(--text-muted); font-size: 12px; display: block; margin-bottom: 5px;">Max Concurrent</label>
+                        <select class="input-pill" style="width: 100%;">
+                            <option>1</option>
+                            <option selected>3</option>
+                            <option>5</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="showToast('Settings Saved', 'success')" style="margin-top: 10px;">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        const MOCK_DB = [
+            { id: 1, title: "Cyberpunk: Edgerunners", eps: 10, img: "https://picsum.photos/seed/cyber/300/420", desc: "In a dystopia riddled with corruption and cybernetic implants, a talented but reckless street kid strives to become a mercenary outlaw." },
+            { id: 2, title: "That Time I Got Reincarnated", eps: 48, img: "https://picsum.photos/seed/slime/300/420", desc: "Corporate worker Mikami Satoru is stabbed by a random killer, and is reborn into an alternate world." },
+            { id: 3, title: "Attack on Titan", eps: 87, img: "https://picsum.photos/seed/titan/300/420", desc: "After his hometown is destroyed and his mother is killed, young Eren Jaeger vows to cleanse the earth of the giant humanoid Titans." },
+            { id: 4, title: "Jujutsu Kaisen", eps: 48, img: "https://picsum.photos/seed/jjk/300/420", desc: "A boy swallows a cursed talisman - the finger of a demon - and becomes cursed himself." },
+            { id: 5, title: "Demon Slayer: Kimetsu no Yaiba", eps: 55, img: "https://picsum.photos/seed/ds/300/420", desc: "A family is attacked by demons and only two members survive - Tanjiro and his sister Nezuko." },
+            { id: 6, title: "Solo Leveling", eps: 12, img: "https://picsum.photos/seed/solo/300/420", desc: "In a world where hunters must battle deadly monsters to protect humanity, Sung Jinwoo is the weakest of them all." },
+        ];
+
+        let downloads = [];
+        let currentAnime = null;
+
+        window.onload = () => {
+            renderGrid(MOCK_DB.slice(0, 4), 'trending-grid');
+        };
+
+        function switchView(view, data) {
+            document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${view}`).classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const navs = ['home', 'downloads', 'settings'];
+            if(navs.includes(view)) document.querySelectorAll('.nav-item')[navs.indexOf(view)].classList.add('active');
+
+            document.getElementById('page-title').innerText = view.charAt(0).toUpperCase() + view.slice(1);
+            document.getElementById('notif-dropdown').classList.remove('show');
+
+            if(view === 'downloads') renderDownloads();
+            if(view === 'details' && data) loadDetails(data);
+        }
+
+        function triggerSearch() { performSearch(); }
+
+        function performSearch() {
+            const q = document.getElementById('search-input').value.toLowerCase().trim();
+            const trending = document.getElementById('trending-section');
+            const results = document.getElementById('results-section');
+            const resGrid = document.getElementById('results-grid');
+
+            if (q.length > 0) {
+                trending.style.display = 'none';
+                results.style.display = 'block';
+                const filtered = MOCK_DB.filter(a => a.title.toLowerCase().includes(q));
+                renderGrid(filtered, 'results-grid');
+            } else {
+                trending.style.display = 'block';
+                results.style.display = 'none';
+            }
+        }
+        
+        function handleEnter(e) { if(e.key === 'Enter') performSearch(); }
+
+        function renderGrid(list, targetId) {
+            const container = document.getElementById(targetId);
+            container.innerHTML = list.map(a => `
+                <div class="anime-card" onclick='switchView("details", ${JSON.stringify(a)})'>
+                    <div class="poster-wrapper">
+                        <img src="${a.img}" class="anime-poster" loading="lazy">
+                    </div>
+                    <div class="anime-info">
+                        <div class="anime-title">${a.title}</div>
+                        <div class="anime-meta">
+                            <span>${a.eps} Episodes</span>
+                            <span class="badge">HD</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadDetails(anime) {
+            currentAnime = anime;
+            const v = document.getElementById('view-details');
+            let epHtml = '';
+            for(let i=1; i<=anime.eps; i++) {
+                epHtml += `
+                    <div>
+                        <input type="checkbox" id="e-${i}" class="ep-checkbox">
+                        <label for="e-${i}" class="ep-label">Ep ${i}</label>
+                    </div>
+                `;
+            }
+
+            v.innerHTML = `
+                <div class="details-header">
+                    <img src="${anime.img}" class="details-poster">
+                    <div class="details-content">
+                        <div class="details-title">${anime.title}</div>
+                        <div class="details-desc">${anime.desc}</div>
+                        
+                        <div class="control-bar">
+                            <input type="text" class="input-pill" placeholder="e.g. 1-5">
+                            <button class="btn btn-ghost" onclick="toggleAll(true)">All</button>
+                            <button class="btn btn-ghost" onclick="toggleAll(false)">None</button>
+                            <div style="flex:1"></div>
+                            <button class="btn btn-primary" onclick="addDownloads()">Download (<span id="cnt">0</span>)</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="episodes-grid">${epHtml}</div>
+            `;
+            
+            v.querySelectorAll('.ep-checkbox').forEach(c => c.addEventListener('change', () => {
+                document.getElementById('cnt').innerText = v.querySelectorAll('.ep-checkbox:checked').length;
+            }));
+        }
+
+        function toggleAll(state) {
+            document.querySelectorAll('.ep-checkbox').forEach(c => c.checked = state);
+            document.getElementById('cnt').innerText = state ? currentAnime.eps : 0;
+        }
+
+        function addDownloads() {
+            const checked = document.querySelectorAll('.ep-checkbox:checked');
+            if(checked.length === 0) return showToast('Select episodes first', 'warning');
+            
+            checked.forEach(c => {
+                const num = c.id.split('-')[1];
+                downloads.push({
+                    id: Math.random(),
+                    title: `${currentAnime.title} Ep ${num}.mp4`,
+                    prog: 0
+                });
+            });
+            showToast(`Added ${checked.length} tasks`, 'success');
+            switchView('downloads');
+        }
+
+        function renderDownloads() {
+            const list = document.getElementById('downloads-list');
+            if(downloads.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:40px;">No active downloads</div>';
+                return;
+            }
+            list.innerHTML = downloads.map(d => `
+                <div class="download-item">
+                    <div class="dl-top">
+                        <div class="dl-name">${d.title}</div>
+                        <div style="font-size:12px; color:var(--primary);">Downloading</div>
+                    </div>
+                    <div class="progress-bg">
+                        <div class="progress-bar" style="width: ${d.prog}%"></div>
+                    </div>
+                </div>
+            `).join('');
+
+            downloads.forEach(d => {
+                if(d.prog < 100) {
+                    d.prog += Math.random() * 5;
+                    if(d.prog > 100) d.prog = 100;
+                }
+            });
+            setTimeout(renderDownloads, 500);
+        }
+
+        function toggleNotifications(e) {
+            e.stopPropagation();
+            document.getElementById('notif-dropdown').classList.toggle('show');
+            document.getElementById('notif-dot').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.closest('.notif-container')) {
+                document.getElementById('notif-dropdown').classList.remove('show');
+            }
+        }
+
+        function showToast(msg, type) {
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.innerText = msg;
+            if(type==='error') t.style.borderLeftColor = '#ff4444';
+            if(type==='warning') t.style.borderLeftColor = '#ffbb33';
+            c.appendChild(t);
+            setTimeout(() => { t.style.opacity='0'; t.style.transform='translateY(10px)'; }, 3000);
+            setTimeout(() => t.remove(), 3500);
+        }
+    </script>
+</body>
+</html>
