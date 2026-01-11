@@ -23,3 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 bun.lock
+src-tauri/downloads.json
+src-tauri/debug_jsons/
