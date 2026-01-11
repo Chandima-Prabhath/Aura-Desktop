@@ -413,7 +413,19 @@ body {
 }
 
 /* --- DOWNLOADS VIEW --- */
-.downloads-list { display: flex; flex-direction: column; gap: 15px; max-width: 1000px; margin: 0 auto; }
+.downloads-list { display: flex; flex-direction: column; gap: 25px; max-width: 1000px; margin: 0 auto; }
+.download-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.download-group-header {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--primary);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
 .download-item {
     background: var(--bg-card); padding: 20px; border-radius: 12px;
     border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;

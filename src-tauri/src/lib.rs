@@ -165,12 +165,13 @@ fn initialize_project(dir_path: String) -> Result<(), String> {
     Ok(())
 }
 
+use tauri::Manager;
 use tauri_plugin_shell::ShellExt;
-use tauri_plugin_shell::process::{CommandEvent, Child};
+use tauri_plugin_shell::process::{CommandEvent, ProcessChild};
 use std::sync::Mutex;
 
 pub struct AppState {
-    pub child_process: Mutex<Option<Child>>,
+    pub child_process: Mutex<Option<ProcessChild>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
