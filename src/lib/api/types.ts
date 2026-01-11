@@ -4,6 +4,17 @@ export interface AnimeSearchResult {
   image: string;
 }
 
+export interface AnimeListEntry {
+  title: string;
+  url: string;
+  image: string;
+  title_jp: string;
+  latest_ep_number: string;
+  time_ago: string;
+  rank: number | null;
+  popularity_delta: string;
+}
+
 export interface Episode {
   episode_number: number;
   name: string;

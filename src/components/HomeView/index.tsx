@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { searchAnime } from '../../lib/api/anime';
-import { AnimeSearchResult } from '../../lib/api/types';
+import { searchAnime, getPopularAnime, getNewAnime } from '../../lib/api/anime';
 
 interface HomeViewProps {
   onNavigate: (view: string, data?: any) => void;
@@ -41,18 +40,32 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
     }
   };
 
-  const trendingAnimes: AnimeSearchResult[] = [
-    {
-      title: 'Solo Leveling',
-      url: '',
-      image: 'https://picsum.photos/seed/solo/300/420',
-    },
-    {
-      title: 'Jujutsu Kaisen',
-      url: '',
-      image: 'https://picsum.photos/seed/jjk/300/420',
-    },
-  ];
+  const {
+    data: popularAnime,
+    isLoading: isLoadingPopular,
+    error: errorPopular,
+  } = useQuery({
+    queryKey: ['popularAnime'],
+    queryFn: getPopularAnime,
+  });
+
+  const {
+    data: newAnime,
+    isLoading: isLoadingNew,
+    error: errorNew,
+  } = useQuery({
+    queryKey: ['newAnime'],
+    queryFn: getNewAnime,
+  });
+
+  useEffect(() => {
+    if (errorPopular) {
+      showToast(errorPopular.message, 'error');
+    }
+    if (errorNew) {
+      showToast(errorNew.message, 'error');
+    }
+  }, [errorPopular, errorNew, showToast]);
 
   return (
     <div id="view-home" className="view-container active">
@@ -76,33 +89,58 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
       </div>
 
       {searchQuery.length === 0 && (
-        <div id="trending-section">
-          <div className="section-header">Trending Now</div>
-          <div className="featured-grid">
-            {trendingAnimes.map((anime) => (
-              <div
-                key={anime.title}
-                className="anime-card"
-                onClick={() => onNavigate('details', anime)}
-              >
-                <div className="poster-wrapper">
-                  <img
-                    src={anime.image}
-                    className="anime-poster"
-                    loading="lazy"
-                    alt={anime.title}
-                  />
-                </div>
-                <div className="anime-info">
-                  <div className="anime-title">{anime.title}</div>
-                  <div className="anime-meta">
-                    <span className="badge">HD</span>
+        <>
+          <div id="popular-section">
+            <div className="section-header">Popular Today</div>
+            {isLoadingPopular && <div className="loader">Loading...</div>}
+            <div className="featured-grid">
+              {popularAnime?.map((anime) => (
+                <div
+                  key={anime.url}
+                  className="anime-card"
+                  onClick={() => onNavigate('details', anime)}
+                >
+                  <div className="poster-wrapper">
+                    <img
+                      src={anime.image}
+                      className="anime-poster"
+                      loading="lazy"
+                      alt={anime.title}
+                    />
+                  </div>
+                  <div className="anime-info">
+                    <div className="anime-title">{anime.title}</div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+          <div id="new-section" style={{ marginTop: '40px' }}>
+            <div className="section-header">Newly Released</div>
+            {isLoadingNew && <div className="loader">Loading...</div>}
+            <div className="featured-grid">
+              {newAnime?.map((anime) => (
+                <div
+                  key={anime.url}
+                  className="anime-card"
+                  onClick={() => onNavigate('details', anime)}
+                >
+                  <div className="poster-wrapper">
+                    <img
+                      src={anime.image}
+                      className="anime-poster"
+                      loading="lazy"
+                      alt={anime.title}
+                    />
+                  </div>
+                  <div className="anime-info">
+                    <div className="anime-title">{anime.title}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {isLoading && <div className="loader">Loading...</div>}
