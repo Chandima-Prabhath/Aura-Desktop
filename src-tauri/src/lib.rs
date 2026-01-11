@@ -166,21 +166,31 @@ fn initialize_project(dir_path: String) -> Result<(), String> {
 }
 
 use tauri_plugin_shell::ShellExt;
-use tauri_plugin_shell::process::CommandEvent;
+use tauri_plugin_shell::process::{CommandEvent, Child};
+use std::sync::Mutex;
+
+pub struct AppState {
+    pub child_process: Mutex<Option<Child>>,
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(AppState {
+            child_process: Mutex::new(None),
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             let app_handle = app.handle().clone();
+            let state: tauri::State<AppState> = app.state();
             tauri::async_runtime::spawn(async move {
                 match app_handle.shell().sidecar("aura-api") {
                     Ok(sidecar_command) => {
                         match sidecar_command.spawn() {
-                            Ok((mut rx, _child)) => {
+                            Ok((mut rx, child)) => {
+                                *state.child_process.lock().unwrap() = Some(child);
                                 while let Some(event) = rx.recv().await {
                                     match event {
                                         CommandEvent::Stdout(line) => {
@@ -204,6 +214,15 @@ pub fn run() {
                 }
             });
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::Destroyed = event {
+                if let Some(child) = window.state::<AppState>().child_process.lock().unwrap().take() {
+                    if let Err(e) = child.kill() {
+                        eprintln!("Failed to kill sidecar process: {}", e);
+                    }
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             greet,
