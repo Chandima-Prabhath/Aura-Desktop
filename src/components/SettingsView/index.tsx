@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { open } from '@tauri-apps/plugin-dialog';
 import { getSettings, updateSettings } from '../../lib/api/settings';
 import { SettingsUpdateRequest } from '../../lib/api/types';
 
@@ -53,6 +54,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
     saveSettings(formData);
   };
 
+  const handleBrowse = async () => {
+    const result = await open({
+      directory: true,
+      multiple: false,
+      title: 'Select Download Folder',
+    });
+
+    if (typeof result === 'string') {
+      setFormData((prev) => ({ ...prev, download_path: result }));
+    }
+  };
+
   if (isLoading) {
     return <div className="loader">Loading settings...</div>;
   }
@@ -78,14 +91,19 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
             >
               Download Path
             </label>
-            <input
-              type="text"
-              name="download_path"
-              className="input-pill"
-              value={formData.download_path || ''}
-              onChange={handleInputChange}
-              style={{ width: '100%' }}
-            />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                name="download_path"
+                className="input-pill"
+                value={formData.download_path || ''}
+                onChange={handleInputChange}
+                style={{ width: '100%', flex: 1 }}
+              />
+              <button className="btn btn-ghost" onClick={handleBrowse}>
+                Browse
+              </button>
+            </div>
           </div>
           <div>
             <label

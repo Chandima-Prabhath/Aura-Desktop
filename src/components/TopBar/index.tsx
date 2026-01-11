@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useIsFetching } from '@tanstack/react-query';
 import { checkHealth } from '../../lib/api/health';
 
 type TopBarProps = {
@@ -10,11 +10,13 @@ const TopBar: React.FC<TopBarProps> = ({ pageTitle }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const { data: health, isSuccess } = useQuery({
+  const { data: health, isSuccess, isError } = useQuery({
     queryKey: ['health'],
     queryFn: checkHealth,
     refetchInterval: 5000, // Poll every 5 seconds
   });
+
+  const isFetching = useIsFetching() > 0;
 
   const toggleNotifications = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -41,8 +43,12 @@ const TopBar: React.FC<TopBarProps> = ({ pageTitle }) => {
       <div className="api-status">
         <div
           className={`status-dot ${
-            isSuccess && health?.status === '200' ? 'healthy' : 'unhealthy'
-          }`}
+            isError
+              ? 'unhealthy'
+              : isSuccess && health?.status === '200'
+              ? 'healthy'
+              : ''
+          } ${isFetching ? 'blinking' : ''}`}
         ></div>
         API Status
       </div>
