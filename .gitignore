@@ -25,3 +25,4 @@ dist-ssr
 bun.lock
 src-tauri/downloads.json
 src-tauri/debug_jsons/
+scraper-lib/target/
