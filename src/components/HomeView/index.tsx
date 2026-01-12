@@ -56,7 +56,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
     isLoading: isLoadingPopular,
     error: errorPopular,
   } = useQuery({
-    queryKey: ['popularAnime'],
+    queryKey: ['popularAnime', isBooting],
     queryFn: getPopularAnime,
     enabled: !isBooting,
   });
@@ -66,7 +66,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
     isLoading: isLoadingNew,
     error: errorNew,
   } = useQuery({
-    queryKey: ['newAnime'],
+    queryKey: ['newAnime', isBooting],
     queryFn: getNewAnime,
     enabled: !isBooting,
   });
@@ -129,7 +129,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
                 <div className="section-header">
                   <h2>Popular Today</h2>
                   <button
-                    className="text-primary hover:underline"
+                    className="view-all-btn"
                     onClick={() => onNavigate('popular')}
                   >
                     View All
@@ -162,7 +162,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
                 <div className="section-header">
                   <h2>Newly Released</h2>
                   <button
-                    className="text-primary hover:underline"
+                    className="view-all-btn"
                     onClick={() => onNavigate('new')}
                   >
                     View All

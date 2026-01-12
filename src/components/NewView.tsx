@@ -23,7 +23,7 @@ const NewView: React.FC<NewViewProps> = ({ onNavigate, showToast }) => {
   }, [viewMode]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['newAnime'],
+    queryKey: ['newAnimeAll'],
     queryFn: getNewAnime,
   });
 

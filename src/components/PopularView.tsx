@@ -23,7 +23,7 @@ const PopularView: React.FC<PopularViewProps> = ({ onNavigate, showToast }) => {
   }, [viewMode]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['popularAnime'],
+    queryKey: ['popularAnimeAll'],
     queryFn: getPopularAnime,
   });
 

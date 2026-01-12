@@ -575,3 +575,17 @@ body {
   font-size: 1.1rem;
   font-weight: 600;
 }
+
+.view-all-btn {
+  background-color: transparent;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.view-all-btn:hover {
+  text-decoration: underline;
+}
