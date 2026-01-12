@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getAllDownloads,
@@ -6,9 +6,26 @@ import {
   resumeDownload,
   cancelDownload,
 } from '../../lib/api/downloads';
+import { DownloadTask } from '../../lib/api/types';
+
+const statusPriority: Record<string, number> = {
+  Downloading: 1,
+  Paused: 2,
+  Queued: 2,
+  Completed: 3,
+  Cancelled: 4,
+  Error: 4,
+};
+
+const getGroupStatus = (downloads: DownloadTask[]): number => {
+  return Math.min(
+    ...downloads.map((d) => statusPriority[d.status] || 99)
+  );
+};
 
 const DownloadsView: React.FC = () => {
   const queryClient = useQueryClient();
+  const [completedGroups, setCompletedGroups] = useState<Record<string, number>>({});
 
   const { data: downloads, isLoading } = useQuery({
     queryKey: ['downloads'],
@@ -45,6 +62,27 @@ const DownloadsView: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  useEffect(() => {
+    if (downloads) {
+      const now = Date.now();
+      const updatedCompleted = { ...completedGroups };
+
+      for (const groupTitle in groupedDownloads) {
+        const groupDownloads = groupedDownloads[groupTitle];
+        const isCompleted = groupDownloads.every(
+          (d) => d.status === 'Completed'
+        );
+
+        if (isCompleted && !updatedCompleted[groupTitle]) {
+          updatedCompleted[groupTitle] = now;
+        } else if (!isCompleted && updatedCompleted[groupTitle]) {
+          delete updatedCompleted[groupTitle];
+        }
+      }
+      setCompletedGroups(updatedCompleted);
+    }
+  }, [downloads]);
+
   const groupedDownloads = downloads?.reduce((acc, d) => {
     const title = d.anime_title || 'Unknown Anime';
     if (!acc[title]) {
@@ -52,7 +90,17 @@ const DownloadsView: React.FC = () => {
     }
     acc[title].push(d);
     return acc;
-  }, {} as Record<string, typeof downloads>);
+  }, {} as Record<string, DownloadTask[]>);
+
+  const sortedAndFilteredDownloads = groupedDownloads
+    ? Object.entries(groupedDownloads)
+        .filter(([title]) => {
+          const completedTime = completedGroups[title];
+          if (!completedTime) return true;
+          return Date.now() - completedTime < 60000; // 1 minute
+        })
+        .sort(([, a], [, b]) => getGroupStatus(a) - getGroupStatus(b))
+    : [];
 
   return (
     <div id="view-downloads" className="view-container active">
@@ -71,7 +119,7 @@ const DownloadsView: React.FC = () => {
             No active downloads
           </div>
         ) : (
-          Object.entries(groupedDownloads).map(([title, downloads]) => (
+          sortedAndFilteredDownloads.map(([title, downloads]) => (
             <div key={title} className="download-group">
               <div className="download-group-header">{title}</div>
               {downloads.map((d) => (

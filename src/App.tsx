@@ -1,32 +1,40 @@
 // src/App.tsx
 import { useState } from 'react';
+import { Toaster, toast } from 'react-hot-toast';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import HomeView from './components/HomeView';
 import DetailsView from './components/DetailsView';
 import DownloadsView from './components/DownloadsView';
 import SettingsView from './components/SettingsView';
+import PopularView from './components/PopularView';
+import NewView from './components/NewView';
 import { AnimeSearchResult } from './lib/api/types';
 
-type View = 'home' | 'details' | 'downloads' | 'settings';
-
-interface Toast {
-    id: number;
-    message: string;
-    type: 'success' | 'warning' | 'error' | 'info';
-}
+type View = 'home' | 'details' | 'downloads' | 'settings' | 'popular' | 'new';
 
 function App() {
     const [currentView, setCurrentView] = useState<View>('home');
     const [activeAnime, setActiveAnime] = useState<AnimeSearchResult | null>(null);
-    const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const showToast = (message: string, type: Toast['type']) => {
-        const newToast: Toast = { id: Date.now(), message, type };
-        setToasts(prev => [...prev, newToast]);
-        setTimeout(() => {
-            setToasts(allToasts => allToasts.filter(t => t.id !== newToast.id));
-        }, 3500);
+    const showToast = (
+        message: string,
+        type: 'success' | 'warning' | 'error' | 'info'
+    ) => {
+        switch (type) {
+            case 'success':
+                toast.success(message);
+                break;
+            case 'error':
+                toast.error(message);
+                break;
+            case 'warning':
+                toast(message, { icon: '⚠️' });
+                break;
+            case 'info':
+                toast.custom(message);
+                break;
+        }
     };
 
     const handleNavigate = (view: string, data?: any) => {
@@ -47,30 +55,47 @@ function App() {
             case 'details':
                 return <DetailsView anime={activeAnime} onDownloadsAdded={handleDownloadsAdded} showToast={showToast} />;
             case 'downloads':
-                return <DownloadsView />;
+                return <DownloadsView onNavigate={handleNavigate} />;
             case 'settings':
                 return <SettingsView showToast={showToast} />;
+            case 'popular':
+                return <PopularView onNavigate={handleNavigate} showToast={showToast} />;
+            case 'new':
+                return <NewView onNavigate={handleNavigate} showToast={showToast} />;
             default:
                 return <HomeView onNavigate={handleNavigate} showToast={showToast} />;
         }
     };
 
-    const pageTitle = currentView.charAt(0).toUpperCase() + currentView.slice(1);
+    const getPageTitle = () => {
+        switch (currentView) {
+            case 'home':
+                return 'Home';
+            case 'details':
+                return 'Details';
+            case 'downloads':
+                return 'Downloads';
+            case 'settings':
+                return 'Settings';
+            case 'popular':
+                return 'Popular';
+            case 'new':
+                return 'New';
+            default:
+                return 'Aura';
+        }
+    };
+
+    const pageTitle = getPageTitle();
 
     return (
         <div style={{ display: 'flex', height: '100vh' }}>
+            <Toaster position="bottom-right" />
             <Sidebar activeView={currentView} onNavigate={handleNavigate} />
             <main className="main-content">
-                <TopBar pageTitle={pageTitle} />
+                <TopBar pageTitle={getPageTitle()} />
                 {renderView()}
             </main>
-            <div className="toast-container">
-                {toasts.map(toast => (
-                    <div key={toast.id} className={`toast toast-${toast.type}`}>
-                        {toast.message}
-                    </div>
-                ))}
-            </div>
         </div>
     );
 }

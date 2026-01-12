@@ -505,3 +505,73 @@ body {
     color: white; font-size: 14px; animation: slideIn 0.3s ease; border: 1px solid var(--border);
 }
 @keyframes slideIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* Keyframes for the marshmallow animation */
+@keyframes marshmallow-fade {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Styles for the horizontally scrollable carousel */
+.scrollable-row {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none; /* For Firefox */
+  -ms-overflow-style: none; /* For Internet Explorer and Edge */
+}
+
+.scrollable-row::-webkit-scrollbar {
+  display: none; /* For Chrome, Safari, and Opera */
+}
+
+.anime-card {
+  flex: 0 0 auto; /* Prevent cards from shrinking */
+  width: 160px; /* Adjust width as needed */
+  margin-right: 16px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  background-color: var(--card);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.list-item:hover {
+  background-color: var(--accent);
+}
+
+.list-item-image {
+  width: 80px;
+  height: 120px;
+  object-fit: cover;
+}
+
+.list-item-info {
+  padding: 16px;
+}
+
+.list-item-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
