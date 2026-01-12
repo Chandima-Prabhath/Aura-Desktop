@@ -32,6 +32,15 @@ bun run tauri:dev
 
 # Build for production
 bun run tauri:build
+
+# Start development in Android
+bun run tauri:android-dev
+
+# Build for android
+bun run tauri:android-build
+
+# Run this command to generate icons from a image
+bun run tauri icon "path/to/image"
 ```
 
 ## Project Structure

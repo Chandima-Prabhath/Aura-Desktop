@@ -40,7 +40,10 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "tauri:android-init": "tauri android init",
+    "tauri:android-build": "tauri android build",
+    "tauri:android-dev": "tauri android dev"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
