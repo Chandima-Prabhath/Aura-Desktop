@@ -413,7 +413,19 @@ body {
 }
 
 /* --- DOWNLOADS VIEW --- */
-.downloads-list { display: flex; flex-direction: column; gap: 15px; max-width: 1000px; margin: 0 auto; }
+.downloads-list { display: flex; flex-direction: column; gap: 25px; max-width: 1000px; margin: 0 auto; }
+.download-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.download-group-header {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--primary);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
 .download-item {
     background: var(--bg-card); padding: 20px; border-radius: 12px;
     border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;
@@ -424,6 +436,61 @@ body {
 .progress-bar {
     height: 100%; background: linear-gradient(90deg, var(--primary-dim), var(--primary));
     width: 0%; transition: width 0.3s linear;
+}
+.dl-bottom {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.dl-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
+}
+.btn-icon {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 5px;
+}
+.btn-icon:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--primary);
+}
+
+/* --- API STATUS --- */
+.api-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-right: auto;
+    margin-left: 20px;
+}
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f39c12; /* Default: yellow for loading */
+}
+.status-dot.healthy {
+    background: #2ecc71; /* Green */
+}
+.status-dot.unhealthy {
+    background: #e74c3c; /* Red */
+}
+.status-dot.blinking {
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
 }
 
 /* --- TOAST --- */
