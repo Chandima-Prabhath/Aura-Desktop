@@ -26,3 +26,7 @@ bun.lock
 src-tauri/downloads.json
 src-tauri/debug_jsons/
 scraper-lib/target/
+# Android signing secrets
+*.jks
+*.keystore
+keystore.properties
