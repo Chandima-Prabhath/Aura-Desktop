@@ -1,17 +1,13 @@
-import React, { useState, useEffect } from 'react';
+// src/components/SettingsView/index.tsx
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { open } from '@tauri-apps/plugin-dialog';
 import { getSettings, updateSettings } from '../../lib/api/settings';
 import { SettingsUpdateRequest } from '../../lib/api/types';
+import { toast } from 'sonner';
+import MarshmallowLoader from '../common/MarshmallowLoader';
 
-interface SettingsViewProps {
-  showToast: (
-    message: string,
-    type: 'success' | 'warning' | 'error' | 'info'
-  ) => void;
-}
-
-const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
+export default function SettingsView() {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<SettingsUpdateRequest>({});
 
@@ -23,11 +19,11 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
   const { mutate: saveSettings, isPending } = useMutation({
     mutationFn: updateSettings,
     onSuccess: () => {
-      showToast('Settings saved successfully', 'success');
+      toast.success('Settings saved successfully');
       queryClient.invalidateQueries({ queryKey: ['settings'] });
     },
     onError: (error) => {
-      showToast(error.message, 'error');
+      toast.error(error.message);
     },
   });
 
@@ -41,16 +37,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = event.target;
+    const isNumber =
+      name === 'max_concurrent_downloads' ||
+      (settings && typeof settings[name as keyof typeof settings] === 'number');
+
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        typeof prev[name as keyof typeof prev] === 'number'
-          ? parseInt(value, 10)
-          : value,
+      [name]: isNumber ? parseInt(value, 10) : value,
     }));
   };
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = (e: React.FormEvent) => {
+    e.preventDefault();
     saveSettings(formData);
   };
 
@@ -67,79 +65,60 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
   };
 
   if (isLoading) {
-    return <div className="loader">Loading settings...</div>;
+    return <MarshmallowLoader />;
   }
 
   return (
-    <div id="view-settings" className="view-container active">
-      <div
-        className="details-header"
-        style={{ maxWidth: '500px', display: 'block', margin: '0 auto' }}
-      >
-        <h2 className="details-title" style={{ marginBottom: '20px' }}>
-          Settings
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <label
-              style={{
-                color: 'var(--text-muted)',
-                fontSize: '12px',
-                display: 'block',
-                marginBottom: '5px',
-              }}
-            >
-              Download Path
-            </label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <input
-                type="text"
-                name="download_path"
-                className="input-pill"
-                value={formData.download_path || ''}
-                onChange={handleInputChange}
-                style={{ width: '100%', flex: 1 }}
-              />
-              <button className="btn btn-ghost" onClick={handleBrowse}>
-                Browse
-              </button>
-            </div>
-          </div>
-          <div>
-            <label
-              style={{
-                color: 'var(--text-muted)',
-                fontSize: '12px',
-                display: 'block',
-                marginBottom: '5px',
-              }}
-            >
-              Max Concurrent Downloads
-            </label>
-            <select
-              name="max_concurrent_downloads"
-              className="input-pill"
-              value={formData.max_concurrent_downloads || ''}
+    <div className="container mx-auto max-w-2xl p-4">
+      <h1 className="mb-6 text-3xl font-bold">Settings</h1>
+      <form onSubmit={handleSaveChanges} className="space-y-6">
+        <div className="space-y-2">
+          <label htmlFor="download_path" className="text-sm font-medium text-muted-foreground">
+            Download Path
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="download_path"
+              type="text"
+              name="download_path"
+              className="input-pill flex-grow"
+              value={formData.download_path || ''}
               onChange={handleInputChange}
-              style={{ width: '100%' }}
-            >
-              <option value={1}>1</option>
-              <option value={3}>3</option>
-              <option value={5}>5</option>
-            </select>
+              readOnly
+            />
+            <button type="button" className="btn btn-ghost" onClick={handleBrowse}>
+              Browse
+            </button>
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="max_concurrent_downloads" className="text-sm font-medium text-muted-foreground">
+            Max Concurrent Downloads
+          </label>
+          <select
+            id="max_concurrent_downloads"
+            name="max_concurrent_downloads"
+            className="input-pill w-full"
+            value={formData.max_concurrent_downloads || ''}
+            onChange={handleInputChange}
+          >
+            <option value={1}>1</option>
+            <option value={3}>3</option>
+            <option value={5}>5</option>
+          </select>
+        </div>
+
+        <div className="pt-4">
           <button
-            className="btn btn-primary"
-            style={{ marginTop: '10px' }}
-            onClick={handleSaveChanges}
+            type="submit"
+            className="btn btn-primary w-full md:w-auto"
             disabled={isPending}
           >
             {isPending ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
-};
-
-export default SettingsView;
+}

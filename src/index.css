@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* --- CSS VARIABLES & RESET --- */
 :root {
     /* Palette - Dark Modern Native */

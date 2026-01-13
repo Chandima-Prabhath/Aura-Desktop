@@ -1,14 +1,13 @@
-// src/components/HomeView/index.tsx
+// src/components/SearchView/index.tsx
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { searchAnime, getPopularAnime, getNewAnime } from '../../lib/api/anime';
+import { searchAnime } from '../../lib/api/anime';
 import { toast } from 'sonner';
 import { Search } from 'lucide-react';
-import { AnimeCarousel } from './AnimeCarousel';
 import MarshmallowLoader from '../common/MarshmallowLoader';
 
-export default function HomeView() {
+export default function SearchView() {
   const [inputValue, setInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -33,29 +32,6 @@ export default function HomeView() {
     setSearchQuery(inputValue);
   };
 
-  const {
-    data: popularAnime,
-    isLoading: isLoadingPopular,
-    error: errorPopular,
-  } = useQuery({
-    queryKey: ['popularAnime'],
-    queryFn: getPopularAnime,
-  });
-
-  const {
-    data: newAnime,
-    isLoading: isLoadingNew,
-    error: errorNew,
-  } = useQuery({
-    queryKey: ['newAnime'],
-    queryFn: getNewAnime,
-  });
-
-  useEffect(() => {
-    if (errorPopular) toast.error(errorPopular.message);
-    if (errorNew) toast.error(errorNew.message);
-  }, [errorPopular, errorNew]);
-
   const encodeAnimeId = (url: string) => encodeURIComponent(url);
 
   return (
@@ -79,7 +55,7 @@ export default function HomeView() {
 
       {isSearching && <MarshmallowLoader />}
 
-      {searchResults && searchQuery ? (
+      {searchResults && (
         <section>
           <h2 className="mb-4 text-2xl font-bold">Search Results</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -94,19 +70,6 @@ export default function HomeView() {
           </div>
           {searchResults.length === 0 && <p>No results found for "{searchQuery}".</p>}
         </section>
-      ) : (
-        <>
-          <AnimeCarousel
-            title="Popular Today"
-            animeList={popularAnime}
-            isLoading={isLoadingPopular}
-          />
-          <AnimeCarousel
-            title="Newly Released"
-            animeList={newAnime}
-            isLoading={isLoadingNew}
-          />
-        </>
       )}
     </div>
   );
