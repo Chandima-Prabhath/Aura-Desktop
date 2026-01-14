@@ -227,6 +227,7 @@ impl DownloadManager {
                 )
                 .await
                 {
+                    println!("[Aura] Download failed: {}", e);
                     tracing::error!("Download failed: {}", e);
                 }
             });
@@ -305,7 +306,7 @@ async fn download_task_worker(
     };
 
     // Get task info
-    let (mut url, filename, episode_url, gate_id) = {
+    let (mut url, filename, episode_url, gate_id, episode_number) = {
         let jobs_lock = jobs.lock().unwrap();
         let job = jobs_lock
             .iter()
@@ -319,10 +320,21 @@ async fn download_task_worker(
 
         // Skip if already completed or not pending
         match task.status {
-            TaskStatus::Completed => return Ok(()),
-            TaskStatus::Downloading => return Ok(()), // Already being downloaded
-            TaskStatus::Paused(_) | TaskStatus::Error(_) => return Ok(()),
-            TaskStatus::Pending => {} // Continue
+            TaskStatus::Completed => {
+                println!("[Aura] Task {} already completed.", task_id);
+                return Ok(());
+            },
+            TaskStatus::Downloading => {
+                println!("[Aura] Task {} already downloading.", task_id);
+                return Ok(());
+            }, 
+            TaskStatus::Paused(_) | TaskStatus::Error(_) => {
+                println!("[Aura] Task {} is paused or error.", task_id);
+                return Ok(());
+            },
+            TaskStatus::Pending => {
+                println!("[Aura] Task {} is pending. Starting...", task_id);
+            } 
         }
 
         (
@@ -330,20 +342,72 @@ async fn download_task_worker(
             task.filename.clone(),
             task.episode_url.clone(),
             task.gate_id.clone(),
+            task.episode_number,
         )
     };
 
+    // Resolve URL if pending
+    if url == "pending" {
+        println!("[Aura] URL is pending for task {}. Resolving...", task_id);
+        if let (Some(ep_url), Some(gid), Some(eno)) = (&episode_url, &gate_id, episode_number) {
+             let temp_ep = Episode {
+                 name: "".to_string(),
+                 number: eno,
+                 url: ep_url.clone(),
+                 gate_id: gid.clone(),
+             };
+             
+             match scraper.get_download_link(&temp_ep).await {
+                 Ok(resolved_url) => {
+                     println!("[Aura] Link resolved successfully: {}", resolved_url);
+                     url = resolved_url.clone();
+                     
+                     // Persist resolved URL
+                     {
+                        let mut jobs_lock = jobs.lock().unwrap();
+                        if let Some(job) = jobs_lock.iter_mut().find(|j| j.id == job_id) {
+                            if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
+                                task.url = url.clone();
+                            }
+                        }
+                     }
+                     save_jobs(&jobs);
+                 },
+                 Err(e) => {
+                     let msg = format!("Failed to resolve link: {}", e);
+                     println!("[Aura] {}", msg);
+                     return Err(anyhow::anyhow!(msg));
+                 }
+             }
+        } else {
+             return Err(anyhow::anyhow!("Checking pending URL: Missing episode metadata"));
+        }
+    }
+
+    println!("[Aura] Acquiring semaphore for task {}...", task_id);
     // Acquire semaphore permit to limit concurrency
     // This will wait here until a slot is available
     let _permit = semaphore.acquire().await.map_err(|e| anyhow::anyhow!("Semaphore closed: {}", e))?;
+    println!("[Aura] Semaphore acquired for task {}.", task_id);
 
     // Setup paths
-    let final_path = std::path::PathBuf::from(&filename);
-    let file_stem = final_path.file_stem().unwrap_or_default().to_string_lossy();
+    // FIXED: Use configured download_dir instead of saving to CWD
+    let (download_dir, raw_filename) = {
+        let settings = settings_store.read().unwrap();
+        (settings.download_dir.clone(), filename.clone())
+    };
+
+    // Sanitize filename for Windows (remove invalid chars)
+    let sanitized_filename = raw_filename
+        .replace(':', " -")
+        .replace(['<', '>', '"', '/', '\\', '|', '?', '*'], "");
+
+    let final_path = download_dir.join(&sanitized_filename);
+    let file_stem = std::path::Path::new(&sanitized_filename).file_stem().unwrap_or_default().to_string_lossy();
     let parts_folder_name = format!("{}.downloading", file_stem);
-    let parts_folder = final_path.parent()
-        .map(|p| p.join(&parts_folder_name))
-        .unwrap_or_else(|| std::path::PathBuf::from(&parts_folder_name));
+    let parts_folder = download_dir.join(&parts_folder_name);
+    
+    println!("[Aura] Download target: {:?}", final_path);
 
     // Mark as downloading
     {
@@ -351,6 +415,8 @@ async fn download_task_worker(
         if let Some(job) = jobs_lock.iter_mut().find(|j| j.id == job_id) {
             if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
                 task.status = TaskStatus::Downloading;
+                // Update the task filename to the sanitized one so we can find it later
+                task.filename = sanitized_filename.clone();
             }
         }
     }
@@ -365,6 +431,8 @@ async fn download_task_worker(
     // Get total size and initialize segments
     let client = reqwest::Client::new();
     let current_settings = settings_store.read().unwrap().clone();
+    
+    println!("[Aura] Fetching content length for: {}", url);
     let total_size = match get_content_length(&client, &url, &current_settings.user_agent).await {
         Ok(size) => {
             let mut jobs_guard = jobs.lock().unwrap();
