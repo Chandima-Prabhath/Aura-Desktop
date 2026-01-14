@@ -1,7 +1,11 @@
 // src/App.tsx
 import { useState } from 'react';
+import { useIsFetching } from '@tanstack/react-query';
+import { useResponsive } from './hooks/use-responsive';
 import Sidebar from './components/Sidebar';
+import BottomNavBar from './components/BottomNavBar';
 import TopBar from './components/TopBar';
+import MarshmallowLoader from './components/Loader';
 import HomeView from './components/HomeView';
 import DetailsView from './components/DetailsView';
 import DownloadsView from './components/DownloadsView';
@@ -17,6 +21,8 @@ interface Toast {
 }
 
 function App() {
+    const { isMobile } = useResponsive();
+    const isFetching = useIsFetching();
     const [currentView, setCurrentView] = useState<View>('home');
     const [activeAnime, setActiveAnime] = useState<AnimeSearchResult | null>(null);
     const [toasts, setToasts] = useState<Toast[]>([]);
@@ -59,9 +65,14 @@ function App() {
 
     return (
         <div style={{ display: 'flex', height: '100vh' }}>
-            <Sidebar activeView={currentView} onNavigate={handleNavigate} />
+            {isMobile ? (
+                <BottomNavBar activeView={currentView} onNavigate={handleNavigate} />
+            ) : (
+                <Sidebar activeView={currentView} onNavigate={handleNavigate} />
+            )}
             <main className="main-content">
                 <TopBar pageTitle={pageTitle} />
+                {isFetching > 0 && <MarshmallowLoader />}
                 {renderView()}
             </main>
             <div className="toast-container">
