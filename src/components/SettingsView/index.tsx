@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { open } from '@tauri-apps/plugin-dialog';
+import { platform } from '@tauri-apps/plugin-os';
 import { getSettings, updateSettings } from '../../lib/api/tauri';
 import { SettingsUpdateRequest } from '../../lib/api/types';
 
@@ -14,6 +15,12 @@ interface SettingsViewProps {
 const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<SettingsUpdateRequest>({});
+  const [isAndroid, setIsAndroid] = useState(false);
+
+  useEffect(() => {
+    const osPlatform = platform();
+    setIsAndroid(osPlatform === 'android');
+  }, []);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -52,12 +59,6 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
 
   const handleSaveChanges = () => {
     if (formData) {
-      // Cast to any because TS might complain about partial not matching full Settings if validation is strict, 
-      // but let's assume updateSettings accepts what we have if we complete it.
-      // Actually updateSettings expects Settings (full object). 
-      // Since we initialize with existing settings and modify, it should be full.
-      // But formData is typed as SettingsUpdateRequest (Partial).
-      // Best to merge with existing settings or ensure formData has everything.
       if (settings) {
         const merged = { ...settings, ...formData };
         saveSettings(merged);
@@ -66,14 +67,34 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
   };
 
   const handleBrowse = async () => {
-    const result = await open({
-      directory: true,
-      multiple: false,
-      title: 'Select Download Folder',
-    });
+    if (isAndroid) {
+      // Android-specific logic: Toggle between public downloads and app data
+      const publicPath = '/storage/emulated/0/Download';
+      const current = formData.download_dir || '';
 
-    if (typeof result === 'string') {
-      setFormData((prev) => ({ ...prev, download_dir: result }));
+      if (current === publicPath) {
+        showToast('Already using Public Downloads', 'info');
+      } else {
+        // Simple toggle/set for now. In a real app we might show a modal.
+        setFormData(prev => ({ ...prev, download_dir: publicPath }));
+        showToast('Set to Public Downloads folder', 'success');
+      }
+      return;
+    }
+
+    try {
+      const result = await open({
+        directory: true,
+        multiple: false,
+        title: 'Select Download Folder',
+      });
+
+      if (typeof result === 'string') {
+        setFormData((prev) => ({ ...prev, download_dir: result }));
+      }
+    } catch (error) {
+      console.error('Failed to open dialog:', error);
+      showToast('Folder selection is not supported on this device', 'warning');
     }
   };
 
@@ -108,11 +129,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
                 name="download_dir"
                 className="input-pill"
                 value={formData.download_dir || ''}
+                readOnly={isAndroid} // Read-only on Android to prevent manual errors
                 onChange={handleInputChange}
-                style={{ width: '100%', flex: 1 }}
+                style={{ width: '100%', flex: 1, opacity: isAndroid ? 0.7 : 1 }}
               />
               <button className="btn btn-ghost" onClick={handleBrowse}>
-                Browse
+                {isAndroid ? 'Set Public' : 'Browse'}
               </button>
             </div>
           </div>
