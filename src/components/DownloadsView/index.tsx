@@ -1,5 +1,6 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import AuraLoader from '../AuraLoader';
 import {
   getAllDownloads,
   pauseDownload,
@@ -54,13 +55,15 @@ const DownloadsView: React.FC = () => {
     return acc;
   }, {} as Record<string, typeof downloads>);
 
+  if (isLoading) {
+    return <AuraLoader />;
+  }
+
   return (
     <div id="view-downloads" className="view-container active">
       <div className="section-header">Active Downloads</div>
       <div className="downloads-list">
-        {isLoading ? (
-          <div className="loader">Loading downloads...</div>
-        ) : !groupedDownloads || Object.keys(groupedDownloads).length === 0 ? (
+        {!groupedDownloads || Object.keys(groupedDownloads).length === 0 ? (
           <div
             style={{
               textAlign: 'center',

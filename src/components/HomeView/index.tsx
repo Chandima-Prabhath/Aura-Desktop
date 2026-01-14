@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import AuraLoader from '../AuraLoader';
 import { searchAnime, getPopularAnime, getNewAnime } from '../../lib/api/anime';
 
 interface HomeViewProps {
@@ -66,6 +67,10 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
       showToast(errorNew.message, 'error');
     }
   }, [errorPopular, errorNew, showToast]);
+
+  if (isLoadingPopular || isLoadingNew) {
+    return <AuraLoader />;
+  }
 
   return (
     <div id="view-home" className="view-container active">

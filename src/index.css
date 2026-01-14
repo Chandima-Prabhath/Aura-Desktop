@@ -506,49 +506,6 @@ body {
 }
 @keyframes slideIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-/* --- MARSHMALLOW LOADER --- */
-.marshmallow-loader {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: calc(100% - 70px); /* Subtract TopBar height */
-    gap: 20px;
-    position: absolute;
-    top: 70px; /* Start below TopBar */
-    left: 0;
-    z-index: 100;
-    /* Use a slightly transparent background to hint at the page behind */
-    background-color: rgba(11, 12, 16, 0.8);
-    backdrop-filter: blur(5px);
-}
-
-.marshmallow {
-    width: 100px;
-    height: 100px;
-    animation: marshmallow-bounce 1.6s infinite ease-in-out;
-}
-
-/* Stagger the animation delays for the wave effect */
-.marshmallow:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.marshmallow:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes marshmallow-bounce {
-    0%, 70%, 100% {
-        transform: scale(1) translateY(0);
-        opacity: 0.7;
-    }
-    35% {
-        transform: scale(1.15) translateY(-15px);
-        opacity: 1;
-    }
-}
-
 /* --- BOTTOM NAV BAR (MOBILE) --- */
 .bottom-nav-bar {
     display: none; /* Hidden by default */
@@ -593,11 +550,6 @@ body {
 
 /* --- RESPONSIVE MEDIA QUERIES --- */
 @media (max-width: 768px) {
-    .marshmallow-loader {
-        /* On mobile, also account for the bottom nav bar area */
-        height: calc(100% - 70px - 65px);
-    }
-
     .sidebar {
         display: none; /* Hide sidebar on mobile */
     }
@@ -631,5 +583,58 @@ body {
         left: 50%;
         transform: translateX(-50%);
         width: 90%;
+    }
+}
+
+/* --- AURA LOADER --- */
+.aura-loader-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    background-color: rgba(11, 12, 16, 0.8);
+    backdrop-filter: blur(5px);
+}
+
+.aura-loader {
+    position: relative;
+    width: 150px;
+    height: 150px;
+}
+
+.aura-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid var(--primary);
+    animation: aura-pulse 2s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 0 10px var(--primary), inset 0 0 10px var(--primary);
+}
+
+/* Stagger the animation delays for the concentric effect */
+.aura-ring:nth-child(2) {
+    animation-delay: -0.5s;
+}
+
+.aura-ring:nth-child(3) {
+    animation-delay: -1s;
+}
+
+@keyframes aura-pulse {
+    0% {
+        transform: scale(0.1);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 0;
     }
 }
