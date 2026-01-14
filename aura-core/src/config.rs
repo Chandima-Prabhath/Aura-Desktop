@@ -33,6 +33,7 @@ impl Settings {
         std::fs::create_dir_all(&config_dir)?;
 
         let config_file = config_dir.join("settings.toml");
+        println!("[Aura] Loading settings from: {:?}", config_file);
 
         if config_file.exists() {
             let contents = std::fs::read_to_string(&config_file)?;
@@ -58,6 +59,8 @@ impl Settings {
         std::fs::create_dir_all(&config_dir)?;
 
         let config_file = config_dir.join("settings.toml");
+        println!("[Aura] Saving settings to: {:?}", config_file);
+        
         let toml_string = toml::to_string_pretty(self)?;
         std::fs::write(&config_file, toml_string)?;
         Ok(())

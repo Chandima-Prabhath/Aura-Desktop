@@ -127,17 +127,38 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
             >
               Max Concurrent Downloads
             </label>
-            <select
+            <input
+              type="number"
               name="max_concurrent_downloads"
               className="input-pill"
               value={formData.max_concurrent_downloads || ''}
               onChange={handleInputChange}
+              min="1"
+              max="10"
               style={{ width: '100%' }}
+            />
+          </div>
+          <div>
+            <label
+              style={{
+                color: 'var(--text-muted)',
+                fontSize: '12px',
+                display: 'block',
+                marginBottom: '5px',
+              }}
             >
-              <option value={1}>1</option>
-              <option value={3}>3</option>
-              <option value={5}>5</option>
-            </select>
+              Segments Per File
+            </label>
+            <input
+              type="number"
+              name="segments_per_file"
+              className="input-pill"
+              value={formData.segments_per_file || ''}
+              onChange={handleInputChange}
+              min="1"
+              max="16"
+              style={{ width: '100%' }}
+            />
           </div>
           <button
             className="btn btn-primary"

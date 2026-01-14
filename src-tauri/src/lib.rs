@@ -9,18 +9,7 @@ pub struct AppState {
     manager: Arc<DownloadManager>,
 }
 
-impl AppState {
-    fn new() -> Self {
-        let manager = match DownloadManager::new(None) {
-            Ok(m) => Arc::new(m),
-            Err(e) => {
-                eprintln!("Failed to initialize Aura DownloadManager: {}", e);
-                panic!("Failed to initialize Aura DownloadManager: {}", e);
-            }
-        };
-        AppState { manager }
-    }
-}
+
 
 // ------------------------------------------------------------------
 // 2. Core Logic (Testable)
@@ -196,22 +185,30 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Initialize DownloadManager
-    // TODO: Pass a custom config directory if needed for Android/Tauri specific paths
-    let manager = match DownloadManager::new(None) {
-        Ok(m) => Arc::new(m),
-        Err(e) => {
-            eprintln!("Failed to initialize Aura DownloadManager: {}", e);
-            // In a real app, you might want to handle this more gracefully or fallback
-            panic!("Failed to initialize Aura DownloadManager: {}", e);
-        }
-    };
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .manage(AppState { manager })
-        .setup(|_app| {
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            use tauri::Manager;
+            
+            // Resolve App Config Directory (cross-platform, Android-safe)
+            let app_config_dir = match app.path().app_config_dir() {
+                Ok(path) => path,
+                Err(e) => return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to resolve config dir: {}", e)))),
+            };
+            
+            let config_path = app_config_dir.to_string_lossy().to_string();
+            println!("[Aura] Using config path: {}", config_path);
+
+            // Initialize DownloadManager with custom path
+            let manager = match DownloadManager::new(Some(config_path)) {
+                Ok(m) => m,
+                Err(e) => return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to initialize manager: {}", e)))),
+            };
+
+            app.manage(AppState { manager: Arc::new(manager) });
+            
             println!("[Aura] Core initialized with DownloadManager.");
             Ok(())
         })
