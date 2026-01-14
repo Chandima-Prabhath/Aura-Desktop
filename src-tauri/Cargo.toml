@@ -22,4 +22,4 @@ tauri-plugin-dialog = "2.5.0"
 aura-core = { path = "../aura-core" }
 
 # Add this line:
-tokio = { version = "1", features = ["sync"] }
+tokio = { version = "1", features = ["full"] }
