@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useQuery, useIsFetching } from '@tanstack/react-query';
-import { checkHealth } from '../../lib/api/health';
 
 type TopBarProps = {
   pageTitle: string;
@@ -9,14 +7,6 @@ type TopBarProps = {
 const TopBar: React.FC<TopBarProps> = ({ pageTitle }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
-
-  const { data: health, isSuccess, isError } = useQuery({
-    queryKey: ['health'],
-    queryFn: checkHealth,
-    refetchInterval: 5000, // Poll every 5 seconds
-  });
-
-  const isFetching = useIsFetching() > 0;
 
   const toggleNotifications = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -35,22 +25,12 @@ const TopBar: React.FC<TopBarProps> = ({ pageTitle }) => {
     };
   }, []);
 
-
   return (
     <div className="top-bar">
       <div className="page-title" id="page-title">{pageTitle}</div>
 
-      <div className="api-status">
-        <div
-          className={`status-dot ${
-            isError
-              ? 'unhealthy'
-              : isSuccess && health?.status === '200'
-              ? 'healthy'
-              : ''
-          } ${isFetching ? 'blinking' : ''}`}
-        ></div>
-        API Status
+      <div className="api-status" style={{ display: 'none' }}>
+
       </div>
 
       <div className="notif-container" onClick={toggleNotifications} ref={notifRef}>

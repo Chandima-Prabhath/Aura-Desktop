@@ -23,3 +23,4 @@ aura-core = { path = "../aura-core" }
 
 # Add this line:
 tokio = { version = "1", features = ["full"] }
+uuid = { version = "1.19.0", features = ["v4"] }

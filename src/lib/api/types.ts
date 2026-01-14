@@ -48,3 +48,12 @@ export interface DownloadTask {
   total_bytes: number;
   filename: string;
 }
+
+export interface Settings {
+  download_dir: string;
+  max_concurrent_downloads: number;
+  segments_per_file: number;
+  user_agent: string;
+}
+
+export interface SettingsUpdateRequest extends Partial<Settings> { }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { open } from '@tauri-apps/plugin-dialog';
-import { getSettings, updateSettings } from '../../lib/api/settings';
+import { getSettings, updateSettings } from '../../lib/api/tauri';
 import { SettingsUpdateRequest } from '../../lib/api/types';
 
 interface SettingsViewProps {
@@ -51,7 +51,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
   };
 
   const handleSaveChanges = () => {
-    saveSettings(formData);
+    if (formData) {
+      // Cast to any because TS might complain about partial not matching full Settings if validation is strict, 
+      // but let's assume updateSettings accepts what we have if we complete it.
+      // Actually updateSettings expects Settings (full object). 
+      // Since we initialize with existing settings and modify, it should be full.
+      // But formData is typed as SettingsUpdateRequest (Partial).
+      // Best to merge with existing settings or ensure formData has everything.
+      if (settings) {
+        const merged = { ...settings, ...formData };
+        saveSettings(merged);
+      }
+    }
   };
 
   const handleBrowse = async () => {
@@ -62,7 +73,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
     });
 
     if (typeof result === 'string') {
-      setFormData((prev) => ({ ...prev, download_path: result }));
+      setFormData((prev) => ({ ...prev, download_dir: result }));
     }
   };
 
@@ -94,9 +105,9 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
             <div style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="text"
-                name="download_path"
+                name="download_dir"
                 className="input-pill"
-                value={formData.download_path || ''}
+                value={formData.download_dir || ''}
                 onChange={handleInputChange}
                 style={{ width: '100%', flex: 1 }}
               />
