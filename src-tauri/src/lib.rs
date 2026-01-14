@@ -1,4 +1,4 @@
-use aura_core::{AnimeInfo, DownloadManager, Episode, ListEntry, SearchResult};
+use aura_core::{AnimeInfo, DownloadManager, DownloadJob, DownloadTask, Episode, ListEntry, SearchResult, TaskStatus};
 use std::sync::Arc;
 
 // ------------------------------------------------------------------
@@ -41,6 +41,73 @@ async fn get_new_releases_impl(manager: &DownloadManager) -> Result<Vec<ListEntr
 async fn get_popular_impl(manager: &DownloadManager) -> Result<Vec<ListEntry>, String> {
     let scraper = manager.get_scraper();
     scraper.get_popular().await.map_err(|e| e.to_string())
+}
+
+async fn start_download_impl(
+    manager: &DownloadManager,
+    anime_title: String,
+    episodes: Vec<Episode>,
+) -> Result<usize, String> {
+    let scraper = manager.get_scraper();
+    let download_root = manager.settings.download_dir.clone();
+    
+    // Sanitize anime title for folder name
+    let safe_anime_name = anime_title.replace(|c: char| !c.is_alphanumeric() && c != ' ' && c != '-', "_");
+    let anime_folder_path = download_root.join(&safe_anime_name);
+    
+    // Ensure directory exists
+    std::fs::create_dir_all(&anime_folder_path).map_err(|e| e.to_string())?;
+
+    let mut tasks = Vec::new();
+    let job_id = format!("job-{}", safe_anime_name); // Simple ID strategy
+
+    // TODO: We might want to run this in parallel or background if it's too slow
+    for ep in episodes {
+       // Check if already downloaded (skip logic omitted for simplicity or can be added)
+       
+       match scraper.get_download_link(&ep).await {
+           Ok(link) => {
+               let filename = format!("Ep{:02}.mp4", ep.number);
+               let full_path = anime_folder_path.join(&filename);
+               
+               let task_id = format!("{}-ep{}", job_id, ep.number);
+               
+               tasks.push(DownloadTask {
+                   id: task_id,
+                   url: link,
+                   filename: full_path.to_string_lossy().to_string(),
+                   status: TaskStatus::Pending,
+                   progress_bytes: 0,
+                   total_bytes: 0,
+                   episode_url: Some(ep.url.clone()),
+                   gate_id: Some(ep.gate_id.clone()),
+                   episode_number: Some(ep.number),
+                   segments: vec![],
+               });
+           }
+           Err(e) => {
+               println!("Failed to resolve link for ep {}: {}", ep.number, e);
+               // We continue to try other episodes
+           }
+       }
+    }
+
+    let count = tasks.len();
+    if count > 0 {
+        let job = DownloadJob {
+            id: job_id.clone(),
+            name: anime_title,
+            tasks,
+        };
+        manager.add_job(job);
+        manager.start_download(job_id).await.map_err(|e| e.to_string())?;
+    }
+
+    Ok(count)
+}
+
+async fn get_downloads_impl(manager: &DownloadManager) -> Result<Vec<DownloadJob>, String> {
+    Ok(manager.get_jobs())
 }
 
 // ------------------------------------------------------------------
@@ -87,6 +154,20 @@ async fn get_popular(state: tauri::State<'_, AppState>) -> Result<Vec<ListEntry>
 }
 
 #[tauri::command]
+async fn start_download(
+    state: tauri::State<'_, AppState>,
+    anime_title: String,
+    episodes: Vec<Episode>,
+) -> Result<usize, String> {
+    start_download_impl(&state.manager, anime_title, episodes).await
+}
+
+#[tauri::command]
+async fn get_downloads(state: tauri::State<'_, AppState>) -> Result<Vec<DownloadJob>, String> {
+    get_downloads_impl(&state.manager).await
+}
+
+#[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
@@ -122,6 +203,8 @@ pub fn run() {
             resolve_link,
             get_new_releases,
             get_popular,
+            start_download,
+            get_downloads,
             greet
         ])
         .build(tauri::generate_context!())
