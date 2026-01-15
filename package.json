@@ -40,15 +40,19 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "tauri:android-init": "tauri android init",
+    "tauri:android-build": "tauri android build",
+    "tauri:android-dev": "tauri android dev"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-query": "^5.90.16",
-    "@tauri-apps/api": ">=2.0.0",
-    "@tauri-apps/plugin-dialog": "2.4.2",
+    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/plugin-dialog": "2.5.0",
+    "@tauri-apps/plugin-os": "^2.3.2",
     "@tauri-apps/plugin-shell": ">=2.0.0",
     "axios": "^1.13.2",
     "framer-motion": "^12.23.24",
@@ -58,7 +62,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
-    "@tauri-apps/cli": ">=2.0.0",
+    "@tauri-apps/cli": "^2.9.6",
     "@types/node": "^22.10.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
