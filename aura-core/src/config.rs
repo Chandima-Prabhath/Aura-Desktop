@@ -11,8 +11,14 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
+        let download_dir = if cfg!(target_os = "android") {
+            PathBuf::from("/storage/emulated/0/Download")
+        } else {
+            dirs::download_dir().unwrap_or_else(|| PathBuf::from("."))
+        };
+
         Self {
-            download_dir: dirs::download_dir().unwrap_or_else(|| PathBuf::from(".")),
+            download_dir,
             max_concurrent_downloads: 3,
             segments_per_file: 4,
             user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Aura/1.0".to_string(),

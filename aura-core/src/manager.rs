@@ -306,7 +306,7 @@ async fn download_task_worker(
     };
 
     // Get task info
-    let (mut url, filename, episode_url, gate_id, episode_number) = {
+    let (mut url, filename, episode_url, gate_id, episode_number, job_name) = {
         let jobs_lock = jobs.lock().unwrap();
         let job = jobs_lock
             .iter()
@@ -343,6 +343,7 @@ async fn download_task_worker(
             task.episode_url.clone(),
             task.gate_id.clone(),
             task.episode_number,
+            job.name.clone(),
         )
     };
 
@@ -402,10 +403,21 @@ async fn download_task_worker(
         .replace(':', " -")
         .replace(['<', '>', '"', '/', '\\', '|', '?', '*'], "");
 
-    let final_path = download_dir.join(&sanitized_filename);
+    // Sanitize anime name folder
+    let sanitized_job_name = job_name
+        .replace(':', " -")
+        .replace(['<', '>', '"', '/', '\\', '|', '?', '*'], "");
+
+    let anime_folder = download_dir.join(&sanitized_job_name);
+    // Ensure anime folder exists
+    if let Err(e) = tokio::fs::create_dir_all(&anime_folder).await {
+         println!("[Aura] Failed to create anime folder: {}", e);
+    }
+
+    let final_path = anime_folder.join(&sanitized_filename);
     let file_stem = std::path::Path::new(&sanitized_filename).file_stem().unwrap_or_default().to_string_lossy();
     let parts_folder_name = format!("{}.downloading", file_stem);
-    let parts_folder = download_dir.join(&parts_folder_name);
+    let parts_folder = anime_folder.join(&parts_folder_name);
     
     println!("[Aura] Download target: {:?}", final_path);
 
