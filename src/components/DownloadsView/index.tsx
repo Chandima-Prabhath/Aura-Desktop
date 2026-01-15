@@ -48,7 +48,7 @@ const DownloadsView: React.FC = () => {
             No active downloads
           </div>
         ) : (
-          downloads.map((job: DownloadJob) => (
+          [...downloads].reverse().map((job: DownloadJob) => (
             <div key={job.id} className="download-group">
               <div className="download-group-header">{job.name}</div>
               {job.tasks.map((d: DownloadTask) => {

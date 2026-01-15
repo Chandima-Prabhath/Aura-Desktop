@@ -102,6 +102,24 @@ const DetailsView: React.FC<DetailsViewProps> = ({
         >
           <div className="details-title">{anime.title}</div>
 
+          {season && (
+            <div style={{ marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {season.japanese_title && (
+                <div style={{ fontSize: '14px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  {season.japanese_title}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {season.year && <span className="badge" style={{ fontSize: '12px' }}>{season.year}</span>}
+                {season.tags && season.tags.map(tag => (
+                  <span key={tag} className="badge" style={{ fontSize: '11px', background: 'rgba(102, 252, 241, 0.1)', color: 'var(--primary)' }}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="control-bar">
             <input
               type="text"
@@ -139,7 +157,21 @@ const DetailsView: React.FC<DetailsViewProps> = ({
                 htmlFor={`e-${ep.number}`}
                 className="ep-label"
               >
-                {ep.name}
+                {(() => {
+                  // Regex to split "Episode X 7 d ago" or similar
+                  // Matches: "Episode <number>" then space then "rest"
+                  const match = ep.name.match(/^(Episode\s+\d+(\.\d+)?)\s+(.*)$/i);
+                  if (match) {
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                        <span className="ep-num">{match[1]}</span>
+                        <span className="ep-date">{match[3]}</span>
+                      </div>
+                    );
+                  }
+                  // Fallback
+                  return <span className="ep-num">{ep.name}</span>;
+                })()}
               </label>
             </div>
           ))}
