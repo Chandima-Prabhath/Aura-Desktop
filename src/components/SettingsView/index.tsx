@@ -41,6 +41,21 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
   useEffect(() => {
     if (settings) {
       setFormData(settings);
+
+      // Android Auto-Path Logic:
+      // If on Android and the path is NOT the public downloads folder (e.g., it's the default internal/hidden app data dir),
+      // auto-switch it to Public Downloads for better UX.
+      if (platform() === 'android') {
+        const publicPath = '/storage/emulated/0/Download';
+        // Check if current setting is empty or seemingly private (contains com.aura.app) or just not the public one
+        if (settings.download_dir !== publicPath) {
+          console.log("[Android] Auto-switching to Public Downloads folder");
+          // Update local form state
+          setFormData(prev => ({ ...prev, download_dir: publicPath }));
+          // Trigger actual save immediately
+          saveSettings({ ...settings, download_dir: publicPath });
+        }
+      }
     }
   }, [settings]);
 
