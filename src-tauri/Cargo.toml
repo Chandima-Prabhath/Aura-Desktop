@@ -1,12 +1,12 @@
 [package]
-name = "sukunai"
+name = "aura"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "sukunai_lib"
+name = "aura_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
