@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import AuraLoader from '../AuraLoader';
-import { searchAnime, getPopularAnime, getNewAnime } from '../../lib/api/tauri';
+import { getPopularAnime, getNewAnime } from '../../lib/api/tauri';
 
 interface HomeViewProps {
   onNavigate: (view: string, data?: any) => void;
@@ -12,34 +12,8 @@ interface HomeViewProps {
 }
 
 const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
-  const [inputValue, setInputValue] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const { data, isLoading, error, isSuccess } = useQuery({
-    queryKey: ['animeSearch', searchQuery],
-    queryFn: () => searchAnime(searchQuery),
-    enabled: searchQuery.length > 0,
-  });
-
-  useEffect(() => {
-    if (error) {
-      showToast(error.message, 'error');
-    }
-  }, [error, showToast]);
-
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(event.target.value);
-  };
-
-  const handleSearch = () => {
-    setSearchQuery(inputValue);
-  };
-
-  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      handleSearch();
-    }
-  };
+  const popularScrollRef = useRef<HTMLDivElement>(null);
+  const newScrollRef = useRef<HTMLDivElement>(null);
 
   const {
     data: popularAnime,
@@ -68,118 +42,83 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
     }
   }, [errorPopular, errorNew, showToast]);
 
+  const scroll = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
+    if (ref.current) {
+      const scrollAmount = 400;
+      ref.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   if (isLoadingPopular || isLoadingNew) {
     return <AuraLoader />;
   }
 
   return (
     <div id="view-home" className="view-container active">
-      <div className="search-section">
-        <div className="search-box">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="What do you want to watch?"
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyPress={handleKeyPress}
-          />
-          <button className="search-btn" onClick={handleSearch} aria-label="Search">
-            <svg className="icon" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
-              <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-              <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path>
-              <path d="M21 21l-6 -6"></path>
-            </svg>
-          </button>
+      <div className="home-section">
+        <div className="section-header-row">
+          <div className="section-header">Popular Today</div>
+          <div className="scroll-buttons">
+            <button className="scroll-btn" onClick={() => scroll(popularScrollRef, 'left')} aria-label="Scroll left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            <button className="scroll-btn" onClick={() => scroll(popularScrollRef, 'right')} aria-label="Scroll right">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+          </div>
+        </div>
+        <div className="horizontal-scroll" ref={popularScrollRef}>
+          {popularAnime?.map((anime) => (
+            <div
+              key={anime.url}
+              className="anime-card-horizontal"
+              onClick={() => onNavigate('details', anime)}
+            >
+              <img
+                src={anime.image}
+                className="anime-poster-horizontal"
+                loading="lazy"
+                alt={anime.title}
+              />
+              <div className="anime-title-horizontal">{anime.title}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {searchQuery.length === 0 && !isLoading && (
-        <>
-          <div id="popular-section">
-            <div className="section-header">Popular Today</div>
-            <div className="featured-grid">
-              {popularAnime?.map((anime) => (
-                <div
-                  key={anime.url}
-                  className="anime-card"
-                  onClick={() => onNavigate('details', anime)}
-                >
-                  <div className="poster-wrapper">
-                    <img
-                      src={anime.image}
-                      className="anime-poster"
-                      loading="lazy"
-                      alt={anime.title}
-                    />
-                  </div>
-                  <div className="anime-info">
-                    <div className="anime-title">{anime.title}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div id="new-section" style={{ marginTop: '40px' }}>
-            <div className="section-header">Newly Released</div>
-            <div className="featured-grid">
-              {newAnime?.map((anime) => (
-                <div
-                  key={anime.url}
-                  className="anime-card"
-                  onClick={() => onNavigate('details', anime)}
-                >
-                  <div className="poster-wrapper">
-                    <img
-                      src={anime.image}
-                      className="anime-poster"
-                      loading="lazy"
-                      alt={anime.title}
-                    />
-                  </div>
-                  <div className="anime-info">
-                    <div className="anime-title">{anime.title}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-
-      {isSuccess && data && (
-        <div id="results-section">
-          <div className="section-header">Search Results</div>
-          <div className="featured-grid">
-            {data.map((anime) => (
-              <div
-                key={anime.url}
-                className="anime-card"
-                onClick={() => onNavigate('details', anime)}
-              >
-                <div className="poster-wrapper">
-                  <img
-                    src={anime.image}
-                    className="anime-poster"
-                    loading="lazy"
-                    alt={anime.title}
-                  />
-                </div>
-                <div className="anime-info">
-                  <div className="anime-title">{anime.title}</div>
-                  <div className="anime-meta">
-                    <span className="badge">HD</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+      <div className="home-section">
+        <div className="section-header-row">
+          <div className="section-header">Newly Released</div>
+          <div className="scroll-buttons">
+            <button className="scroll-btn" onClick={() => scroll(newScrollRef, 'left')} aria-label="Scroll left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+            <button className="scroll-btn" onClick={() => scroll(newScrollRef, 'right')} aria-label="Scroll right">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
           </div>
         </div>
-      )}
-
-      {isSuccess && data?.length === 0 && (
-        <div className="no-results">No results found.</div>
-      )}
+        <div className="horizontal-scroll" ref={newScrollRef}>
+          {newAnime?.map((anime) => (
+            <div
+              key={anime.url}
+              className="anime-card-horizontal"
+              onClick={() => onNavigate('details', anime)}
+            >
+              <img
+                src={anime.image}
+                className="anime-poster-horizontal"
+                loading="lazy"
+                alt={anime.title}
+              />
+              <div className="anime-title-horizontal">{anime.title}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };

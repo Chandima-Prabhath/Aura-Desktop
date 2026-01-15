@@ -10,7 +10,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onNavigate }) => {
   return (
     <nav className="sidebar">
       <div className="app-logo">
-        <img src="https://z-cdn-media.chatglm.cn/files/ea457398-3990-4b36-b6fa-f4c40c00b9ee.png?auth_key=1868121977-67b2641e583a4d60b47a132d282d0f9a-0-98ec1fcd2692dc170a68493699d3ba3d" alt="Aura Logo" />
+        <img src="src-tauri\icons\128x128@2x.png" alt="Aura Logo" />
       </div>
 
       <div className="nav-group">
@@ -20,6 +20,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onNavigate }) => {
           data-tooltip="Home"
         >
           <svg className="icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg>
+        </div>
+        <div
+          className={`nav-item ${activeView === 'search' ? 'active' : ''}`}
+          onClick={() => onNavigate('search')}
+          data-tooltip="Search"
+        >
+          <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
         </div>
 
         <div

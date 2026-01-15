@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 
 type TopBarProps = {
   pageTitle: string;
+  canGoBack?: boolean;
+  onGoBack?: () => void;
 };
 
-const TopBar: React.FC<TopBarProps> = ({ pageTitle }) => {
+const TopBar: React.FC<TopBarProps> = ({ pageTitle, canGoBack, onGoBack }) => {
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
@@ -27,10 +29,19 @@ const TopBar: React.FC<TopBarProps> = ({ pageTitle }) => {
 
   return (
     <div className="top-bar">
-      <div className="page-title" id="page-title">{pageTitle}</div>
-
-      <div className="api-status" style={{ display: 'none' }}>
-
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {canGoBack && onGoBack && (
+          <button
+            className="back-button"
+            onClick={onGoBack}
+            aria-label="Go back"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+        )}
+        <div className="page-title" id="page-title">{pageTitle}</div>
       </div>
 
       <div className="notif-container" onClick={toggleNotifications} ref={notifRef}>
@@ -43,13 +54,6 @@ const TopBar: React.FC<TopBarProps> = ({ pageTitle }) => {
             <div>
               <strong>Update Available</strong><br />
               <span style={{ color: 'var(--text-muted)' }}>Version 0.0.3 is ready to install.</span>
-            </div>
-          </div>
-          <div className="notif-item">
-            <div className="notif-dot" style={{ background: 'var(--success)' }}></div>
-            <div>
-              <strong>Download Complete</strong><br />
-              <span style={{ color: 'var(--text-muted)' }}>Slime Ep 12 finished.</span>
             </div>
           </div>
         </div>
