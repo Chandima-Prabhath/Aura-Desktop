@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import AuraLoader from '../AuraLoader';
-import { searchAnime, getPopularAnime, getNewAnime } from '../../lib/api/anime';
+import { searchAnime, getPopularAnime, getNewAnime } from '../../lib/api/tauri';
 
 interface HomeViewProps {
   onNavigate: (view: string, data?: any) => void;
@@ -85,11 +85,11 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
             onKeyPress={handleKeyPress}
           />
           <button className="search-btn" onClick={handleSearch} aria-label="Search">
-             <svg className="icon" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path>
-                <path d="M21 21l-6 -6"></path>
-             </svg>
+            <svg className="icon" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+              <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path>
+              <path d="M21 21l-6 -6"></path>
+            </svg>
           </button>
         </div>
       </div>

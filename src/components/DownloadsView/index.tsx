@@ -1,41 +1,16 @@
 import React from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import AuraLoader from '../AuraLoader';
-import {
-  getAllDownloads,
-  pauseDownload,
-  resumeDownload,
-  cancelDownload,
-} from '../../lib/api/downloads';
+import { getDownloads } from '../../lib/api/tauri';
+import { DownloadJob, DownloadTask } from '../../lib/api/types';
 
 const DownloadsView: React.FC = () => {
-  const queryClient = useQueryClient();
+
 
   const { data: downloads, isLoading } = useQuery({
     queryKey: ['downloads'],
-    queryFn: getAllDownloads,
-    refetchInterval: 2000, // Poll every 2 seconds
-  });
-
-  const { mutate: pause } = useMutation({
-    mutationFn: pauseDownload,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['downloads'] });
-    },
-  });
-
-  const { mutate: resume } = useMutation({
-    mutationFn: resumeDownload,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['downloads'] });
-    },
-  });
-
-  const { mutate: cancel } = useMutation({
-    mutationFn: cancelDownload,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['downloads'] });
-    },
+    queryFn: getDownloads,
+    refetchInterval: 2000,
   });
 
   const formatBytes = (bytes: number) => {
@@ -46,14 +21,13 @@ const DownloadsView: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const groupedDownloads = downloads?.reduce((acc, d) => {
-    const title = d.anime_title || 'Unknown Anime';
-    if (!acc[title]) {
-      acc[title] = [];
+  const renderStatus = (status: any) => {
+    if (typeof status === 'string') return status;
+    if (typeof status === 'object') {
+      return Object.keys(status)[0];
     }
-    acc[title].push(d);
-    return acc;
-  }, {} as Record<string, typeof downloads>);
+    return 'Unknown';
+  };
 
   if (isLoading) {
     return <AuraLoader />;
@@ -63,7 +37,7 @@ const DownloadsView: React.FC = () => {
     <div id="view-downloads" className="view-container active">
       <div className="section-header">Active Downloads</div>
       <div className="downloads-list">
-        {!groupedDownloads || Object.keys(groupedDownloads).length === 0 ? (
+        {!downloads || downloads.length === 0 ? (
           <div
             style={{
               textAlign: 'center',
@@ -74,48 +48,37 @@ const DownloadsView: React.FC = () => {
             No active downloads
           </div>
         ) : (
-          Object.entries(groupedDownloads).map(([title, downloads]) => (
-            <div key={title} className="download-group">
-              <div className="download-group-header">{title}</div>
-              {downloads.map((d) => (
-                <div key={d.id} className="download-item">
-                  <div className="dl-top">
-                    <div className="dl-name">{d.filename}</div>
-                    <div className="dl-status">{d.status}</div>
-                  </div>
-                  <div className="progress-bg">
-                    <div
-                      className="progress-bar"
-                      style={{ width: `${d.progress}%` }}
-                    ></div>
-                  </div>
-                  <div className="dl-bottom">
-                    <div className="dl-meta">
-                      {formatBytes(d.downloaded_bytes)} /{' '}
-                      {formatBytes(d.total_bytes)}
+          downloads.map((job: DownloadJob) => (
+            <div key={job.id} className="download-group">
+              <div className="download-group-header">{job.name}</div>
+              {job.tasks.map((d: DownloadTask) => {
+                const progress = d.total_bytes > 0 ? (d.progress_bytes / d.total_bytes) * 100 : 0;
+                return (
+                  <div key={d.id} className="download-item">
+                    <div className="dl-top">
+                      <div className="dl-name">{d.filename}</div>
+                      <div className="dl-status">{renderStatus(d.status)}</div>
                     </div>
-                    <div className="dl-speed">{formatBytes(d.speed)}/s</div>
-                    <div className="dl-actions">
-                      {d.status === 'Downloading' && (
-                        <button className="btn-icon" onClick={() => pause(d.id)}>
-                          Pause
-                        </button>
-                      )}
-                      {d.status === 'Paused' && (
-                        <button
-                          className="btn-icon"
-                          onClick={() => resume(d.id)}
-                        >
-                          Resume
-                        </button>
-                      )}
-                      <button className="btn-icon" onClick={() => cancel(d.id)}>
-                        Cancel
-                      </button>
+                    <div className="progress-bg">
+                      <div
+                        className="progress-bar"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                    <div className="dl-bottom">
+                      <div className="dl-meta">
+                        {formatBytes(d.progress_bytes)} /{' '}
+                        {formatBytes(d.total_bytes)}
+                      </div>
+                      {/* Speed is not currently exposed in DownloadTask model in aura-core v0.1.0 without extra calculation or field */}
+                      <div className="dl-speed"></div>
+                      <div className="dl-actions">
+                        {/* Actions not yet implemented in backend */}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ))
         )}

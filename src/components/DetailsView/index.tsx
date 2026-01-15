@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AuraLoader from '../AuraLoader';
-import { getSeason } from '../../lib/api/anime';
-import { startDownloads } from '../../lib/api/downloads';
+import { getSeason, startDownload } from '../../lib/api/tauri';
 import { parseEpisodeRange } from '../../lib/utils';
 import { AnimeSearchResult, Episode } from '../../lib/api/types';
 
@@ -35,9 +34,10 @@ const DetailsView: React.FC<DetailsViewProps> = ({
   });
 
   const { mutate: addDownloads, isPending } = useMutation({
-    mutationFn: startDownloads,
-    onSuccess: (data) => {
-      showToast(`Added ${data.queued} tasks`, 'success');
+    mutationFn: (variables: { anime_title: string; episodes: Episode[] }) =>
+      startDownload(variables.anime_title, variables.episodes),
+    onSuccess: (count) => {
+      showToast(`Added ${count} tasks`, 'success');
       queryClient.invalidateQueries({ queryKey: ['downloads'] });
       onDownloadsAdded();
     },
@@ -84,7 +84,7 @@ const DetailsView: React.FC<DetailsViewProps> = ({
       return;
     }
     const episodesToDownload: Episode[] = season.episodes.filter((ep) =>
-      selectedEpisodes.includes(ep.episode_number)
+      selectedEpisodes.includes(ep.number)
     );
     addDownloads({
       anime_title: season.title,
@@ -127,16 +127,16 @@ const DetailsView: React.FC<DetailsViewProps> = ({
       {season && (
         <div className="episodes-grid">
           {season.episodes.map((ep) => (
-            <div key={ep.episode_number}>
+            <div key={ep.number}>
               <input
                 type="checkbox"
-                id={`e-${ep.episode_number}`}
+                id={`e-${ep.number}`}
                 className="ep-checkbox"
-                checked={selectedEpisodes.includes(ep.episode_number)}
-                onChange={() => toggleEpisode(ep.episode_number)}
+                checked={selectedEpisodes.includes(ep.number)}
+                onChange={() => toggleEpisode(ep.number)}
               />
               <label
-                htmlFor={`e-${ep.episode_number}`}
+                htmlFor={`e-${ep.number}`}
                 className="ep-label"
               >
                 {ep.name}
