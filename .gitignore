@@ -30,3 +30,5 @@ scraper-lib/target/
 *.jks
 *.keystore
 keystore.properties
+
+target/

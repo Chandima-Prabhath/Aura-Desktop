@@ -1,94 +1,59 @@
+// Matches aura_core::SearchResult
 export interface AnimeSearchResult {
   title: string;
   url: string;
   image: string;
 }
 
-export interface AnimeListEntry {
-  title: string;
-  url: string;
-  image: string;
-  title_jp: string;
-  latest_ep_number: string;
-  time_ago: string;
-  rank: number | null;
-  popularity_delta: string;
-}
-
+// Matches aura_core::Episode
 export interface Episode {
-  episode_number: number;
   name: string;
-  raw_name: string;
+  number: number;
   url: string;
   gate_id: string;
 }
 
-export interface Season {
+// Matches aura_core::AnimeInfo
+export interface AnimeInfo {
   title: string;
   url: string;
   episodes: Episode[];
-  related: any[]; // The type for 'related' is not specified in the docs
+  related: AnimeSearchResult[];
+  year?: string | null;
+  tags?: string[] | null;
+  description?: string | null;
+  japanese_title?: string | null;
 }
 
-export interface EpisodePayload {
+// Matches aura_core::ListEntry
+export interface AnimeListEntry {
+  title: string;
   url: string;
-  gate_id?: string | null;
-  episode_number: number;
+  image: string;
+  latest_ep: string;
+  time_ago: string;
+  rank?: number | null;
+}
+
+export interface DownloadJob {
+  id: string;
   name: string;
-}
-
-export interface StartDownloadRequest {
-  anime_title: string;
-  episodes: EpisodePayload[];
-}
-
-export interface StartDownloadResponse {
-  queued: number;
-  task_ids: string[];
-  errors: { [key: string]: any }[];
+  tasks: DownloadTask[];
 }
 
 export interface DownloadTask {
   id: string;
-  url: string;
-  dest_folder: string;
-  filename?: string | null;
-  episode_url?: string | null;
-  anime_title?: string | null;
-  status: string;
-  downloaded_bytes: number;
+  status: any; // TaskStatus enum in Rust, needs mapping or just use string/any for now
+  progress_bytes: number;
   total_bytes: number;
-  speed: number;
-  progress: number;
-  error_message?: string | null;
+  filename: string;
 }
 
 export interface Settings {
-  download_path: string;
+  download_dir: string;
   max_concurrent_downloads: number;
-  download_threads: number;
-  log_level: string;
+  segments_per_file: number;
+  user_agent: string;
 }
 
-export interface SettingsUpdateRequest {
-  download_path?: string | null;
-  max_concurrent_downloads?: number | null;
-  download_threads?: number | null;
-  log_level?: string | null;
-}
-
-export interface HealthCheckResponse {
-  status: string;
-  message: string;
-  api_version: string;
-}
-
-export interface ValidationError {
-  loc: (string | number)[];
-  msg: string;
-  type: string;
-}
-
-export interface HTTPValidationError {
-  detail: ValidationError[];
-}
+export interface SettingsUpdateRequest extends Partial<Settings> { }
