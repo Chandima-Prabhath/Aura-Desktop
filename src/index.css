@@ -505,3 +505,136 @@ body {
     color: white; font-size: 14px; animation: slideIn 0.3s ease; border: 1px solid var(--border);
 }
 @keyframes slideIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* --- BOTTOM NAV BAR (MOBILE) --- */
+.bottom-nav-bar {
+    display: none; /* Hidden by default */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 65px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    justify-content: space-around;
+    align-items: center;
+    z-index: 20;
+}
+
+.bottom-nav-item {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 10px;
+    padding: 8px;
+    border-radius: 8px;
+    width: 70px; /* Fixed width for consistent spacing */
+    transition: all 0.2s ease;
+}
+
+.bottom-nav-item.active {
+    color: var(--primary);
+}
+
+.bottom-nav-item .nav-icon {
+    font-size: 20px; /* Using text icons for now */
+}
+
+
+/* --- RESPONSIVE MEDIA QUERIES --- */
+@media (max-width: 768px) {
+    .sidebar {
+        display: none; /* Hide sidebar on mobile */
+    }
+
+    .bottom-nav-bar {
+        display: flex; /* Show bottom nav on mobile */
+    }
+
+    .main-content {
+        /* Add padding to the bottom to avoid content being hidden by the nav bar */
+        padding-bottom: 65px;
+    }
+
+    .view-container {
+        padding: 20px; /* Reduce padding on mobile */
+    }
+
+    .details-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .featured-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+    }
+
+    .toast-container {
+        bottom: 80px; /* Adjust toast position for bottom nav */
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+    }
+}
+
+/* --- AURA LOADER --- */
+.aura-loader-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    background-color: rgba(11, 12, 16, 0.8);
+    backdrop-filter: blur(5px);
+}
+
+.aura-loader {
+    position: relative;
+    width: 150px;
+    height: 150px;
+}
+
+.aura-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid var(--primary);
+    animation: aura-pulse 2s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 0 10px var(--primary), inset 0 0 10px var(--primary);
+}
+
+/* Stagger the animation delays for the concentric effect */
+.aura-ring:nth-child(2) {
+    animation-delay: -0.5s;
+}
+
+.aura-ring:nth-child(3) {
+    animation-delay: -1s;
+}
+
+@keyframes aura-pulse {
+    0% {
+        transform: scale(0.1);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
