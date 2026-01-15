@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import AuraLoader from '../AuraLoader';
 import { getSeason } from '../../lib/api/anime';
 import { startDownloads } from '../../lib/api/downloads';
 import { parseEpisodeRange } from '../../lib/utils';
@@ -49,6 +50,10 @@ const DetailsView: React.FC<DetailsViewProps> = ({
     setSelectedEpisodes([]);
     setRangeInput('');
   }, [anime]);
+
+  if (isLoading) {
+    return <AuraLoader />;
+  }
 
   if (!anime) {
     return <div id="view-details" className="view-container"></div>;
@@ -118,7 +123,6 @@ const DetailsView: React.FC<DetailsViewProps> = ({
           </div>
         </div>
       </div>
-      {isLoading && <div className="loader">Loading episodes...</div>}
       {error && <div className="error">{error.message}</div>}
       {season && (
         <div className="episodes-grid">
