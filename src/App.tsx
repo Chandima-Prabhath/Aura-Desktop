@@ -140,7 +140,24 @@ function App() {
             case 'home':
                 return <HomeView onNavigate={(v, d) => pushView(v as ViewName, d)} showToast={showToast} />;
             case 'search':
-                return <SearchView onNavigate={(v, d) => pushView(v as ViewName, d)} showToast={showToast} />;
+                return (
+                    <SearchView
+                        onNavigate={(v, d) => pushView(v as ViewName, d)}
+                        showToast={showToast}
+                        initialQuery={currentView.data?.query}
+                        onSearch={(query) => {
+                            setHistory((prev) => {
+                                const newHistory = [...prev];
+                                const currentIndex = newHistory.length - 1;
+                                newHistory[currentIndex] = {
+                                    ...newHistory[currentIndex],
+                                    data: { ...newHistory[currentIndex].data, query },
+                                };
+                                return newHistory;
+                            });
+                        }}
+                    />
+                );
             case 'details':
                 return <DetailsView
                     anime={currentView.data}

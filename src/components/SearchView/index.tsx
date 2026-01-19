@@ -4,6 +4,8 @@ import AuraLoader from '../AuraLoader';
 import { searchAnime } from '../../lib/api/tauri';
 
 interface SearchViewProps {
+    initialQuery?: string;
+    onSearch?: (query: string) => void;
     onNavigate: (view: string, data?: any) => void;
     showToast: (
         message: string,
@@ -11,9 +13,17 @@ interface SearchViewProps {
     ) => void;
 }
 
-const SearchView: React.FC<SearchViewProps> = ({ onNavigate, showToast }) => {
-    const [inputValue, setInputValue] = useState('');
-    const [searchQuery, setSearchQuery] = useState('');
+const SearchView: React.FC<SearchViewProps> = ({ initialQuery, onSearch, onNavigate, showToast }) => {
+    const [inputValue, setInputValue] = useState(initialQuery || '');
+    const [searchQuery, setSearchQuery] = useState(initialQuery || '');
+
+    // If initialQuery changes (e.g. from history nav), update state
+    useEffect(() => {
+        if (initialQuery) {
+            setInputValue(initialQuery);
+            setSearchQuery(initialQuery);
+        }
+    }, [initialQuery]);
 
     const { data, isLoading, error, isSuccess } = useQuery({
         queryKey: ['animeSearch', searchQuery],
@@ -33,7 +43,11 @@ const SearchView: React.FC<SearchViewProps> = ({ onNavigate, showToast }) => {
 
     const handleSearch = () => {
         if (inputValue.trim()) {
-            setSearchQuery(inputValue.trim());
+            const query = inputValue.trim();
+            setSearchQuery(query);
+            if (onSearch) {
+                onSearch(query);
+            }
         }
     };
 

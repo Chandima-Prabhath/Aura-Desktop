@@ -51,14 +51,6 @@ const DetailsView: React.FC<DetailsViewProps> = ({
     setRangeInput('');
   }, [anime]);
 
-  if (isLoading) {
-    return <AuraLoader />;
-  }
-
-  if (!anime) {
-    return <div id="view-details" className="view-container"></div>;
-  }
-
   const handleRangeInputChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -92,91 +84,131 @@ const DetailsView: React.FC<DetailsViewProps> = ({
     });
   };
 
+  // Helper functions for quick selection
+  const selectAll = () => {
+    if (season?.episodes) {
+      setSelectedEpisodes(season.episodes.map(e => e.number));
+    }
+  };
+
+  const selectNone = () => {
+    setSelectedEpisodes([]);
+  };
+
+  const selectFirst10 = () => {
+    if (season?.episodes) {
+      // Assuming episode numbers are sequential 1..N or just taking first 10 items
+      const first10 = season.episodes.slice(0, 10).map(e => e.number);
+      setSelectedEpisodes(first10);
+    }
+  }
+
+
+  if (isLoading) {
+    return <AuraLoader />;
+  }
+
+  if (!anime) {
+    return <div id="view-details" className="view-container"></div>;
+  }
+
   return (
-    <div id="view-details" className="view-container active">
-      <div className="details-header">
-        <img src={anime.image} className="details-poster" alt={anime.title} />
-        <div
-          className="details-content"
-          style={{ display: 'flex', flexDirection: 'column', flex: 1 }}
-        >
-          <div className="details-title">{anime.title}</div>
+    <div id="view-details" className="view-container active details-page-container">
+      {/* Hero Background - Blurred */}
+      <div
+        className="details-backdrop"
+        style={{ backgroundImage: `url(${anime.image})` }}
+      />
 
-          {season && (
-            <div style={{ marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              {season.japanese_title && (
-                <div style={{ fontSize: '14px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  {season.japanese_title}
+      {/* Content Layer */}
+      <div className="details-hero">
+        <div className="details-hero-content">
+          <img src={anime.image} className="details-poster" alt={anime.title} />
+
+          <div className="details-info">
+            <h1 className="details-title">{anime.title}</h1>
+
+            {season && (
+              <>
+                {season.japanese_title && (
+                  <div className="details-jap-title">{season.japanese_title}</div>
+                )}
+
+                <div className="details-meta-row">
+                  {season.year && <span className="meta-badge">{season.year}</span>}
+                  {season.tags && season.tags.length > 0 && (
+                    <div className="meta-tags">
+                      {season.tags.slice(0, 4).map(tag => (
+                        <span key={tag} className="meta-tag">{tag}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                {season.year && <span className="badge" style={{ fontSize: '12px' }}>{season.year}</span>}
-                {season.tags && season.tags.map(tag => (
-                  <span key={tag} className="badge" style={{ fontSize: '11px', background: 'rgba(102, 252, 241, 0.1)', color: 'var(--primary)' }}>
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
 
-          <div className="control-bar">
-            <input
-              type="text"
-              className="input-pill"
-              placeholder="e.g. 1-5, 8, 10-12"
-              value={rangeInput}
-              onChange={handleRangeInputChange}
-            />
-            <div style={{ flex: 1 }}></div>
-            <button
-              className="btn btn-primary"
-              onClick={handleAddDownloads}
-              disabled={isPending}
-            >
-              {isPending
-                ? 'Adding...'
-                : `Download (${selectedEpisodes.length})`}
-            </button>
+                {season.description && (
+                  <div className="details-description">
+                    {season.description}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>
-      {error && <div className="error">{error.message}</div>}
-      {season && (
-        <div className="episodes-grid">
-          {season.episodes.map((ep) => (
-            <div key={ep.number}>
-              <input
-                type="checkbox"
-                id={`e-${ep.number}`}
-                className="ep-checkbox"
-                checked={selectedEpisodes.includes(ep.number)}
-                onChange={() => toggleEpisode(ep.number)}
-              />
-              <label
-                htmlFor={`e-${ep.number}`}
-                className="ep-label"
-              >
-                {(() => {
-                  // Regex to split "Episode X 7 d ago" or similar
-                  // Matches: "Episode <number>" then space then "rest"
-                  const match = ep.name.match(/^(Episode\s+\d+(\.\d+)?)\s+(.*)$/i);
-                  if (match) {
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                        <span className="ep-num">{match[1]}</span>
-                        <span className="ep-date">{match[3]}</span>
-                      </div>
-                    );
-                  }
-                  // Fallback
-                  return <span className="ep-num">{ep.name}</span>;
-                })()}
-              </label>
+
+
+      <div className="details-body">
+        <div className="control-bar-redesigned">
+          <div className="control-inputs">
+            <input
+              type="text"
+              className="input-smart"
+              placeholder="e.g. 1-5, 8"
+              value={rangeInput}
+              onChange={handleRangeInputChange}
+            />
+            <div className="quick-actions">
+              <button className="btn-text" onClick={selectAll}>All</button>
+              <button className="btn-text" onClick={selectNone}>None</button>
             </div>
-          ))}
+          </div>
+
+          <button
+            className="btn-download-primary"
+            onClick={handleAddDownloads}
+            disabled={isPending || selectedEpisodes.length === 0}
+          >
+            {isPending
+              ? 'Adding...'
+              : `Download ${selectedEpisodes.length > 0 ? `(${selectedEpisodes.length})` : ''}`}
+          </button>
         </div>
-      )}
+
+        {error && <div className="error-message">{error.message}</div>}
+
+        {season && (
+          <div className="episodes-grid-redesigned">
+            {season.episodes.map((ep) => {
+              const isSelected = selectedEpisodes.includes(ep.number);
+              return (
+                <div
+                  key={ep.number}
+                  className={`ep-card ${isSelected ? 'selected' : ''}`}
+                  onClick={() => toggleEpisode(ep.number)}
+                >
+                  <div className="ep-card-num">EP {ep.number}</div>
+                  {/* Simplify display logic */}
+                  {(() => {
+                    const match = ep.name.match(/^(Episode\s+\d+(\.\d+)?)\s+(.*)$/i);
+                    const date = match ? match[3] : ep.name;
+                    return <div className="ep-card-date">{date}</div>
+                  })()}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

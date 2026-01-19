@@ -118,94 +118,106 @@ const SettingsView: React.FC<SettingsViewProps> = ({ showToast }) => {
   }
 
   return (
-    <div id="view-settings" className="view-container active">
-      <div
-        className="details-header"
-        style={{ maxWidth: '500px', display: 'block', margin: '0 auto' }}
-      >
-        <h2 className="details-title" style={{ marginBottom: '20px' }}>
-          Settings
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <label
-              style={{
-                color: 'var(--text-muted)',
-                fontSize: '12px',
-                display: 'block',
-                marginBottom: '5px',
-              }}
-            >
-              Download Path
-            </label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <input
-                type="text"
-                name="download_dir"
-                className="input-pill"
-                value={formData.download_dir || ''}
-                readOnly={isAndroid} // Read-only on Android to prevent manual errors
-                onChange={handleInputChange}
-                style={{ width: '100%', flex: 1, opacity: isAndroid ? 0.7 : 1 }}
-              />
-              <button className="btn btn-ghost" onClick={handleBrowse}>
-                {isAndroid ? 'Set Public' : 'Browse'}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label
-              style={{
-                color: 'var(--text-muted)',
-                fontSize: '12px',
-                display: 'block',
-                marginBottom: '5px',
-              }}
-            >
-              Max Concurrent Downloads
-            </label>
-            <input
-              type="number"
-              name="max_concurrent_downloads"
-              className="input-pill"
-              value={formData.max_concurrent_downloads || ''}
-              onChange={handleInputChange}
-              min="1"
-              max="10"
-              style={{ width: '100%' }}
-            />
-          </div>
-          <div>
-            <label
-              style={{
-                color: 'var(--text-muted)',
-                fontSize: '12px',
-                display: 'block',
-                marginBottom: '5px',
-              }}
-            >
-              Segments Per File
-            </label>
-            <input
-              type="number"
-              name="segments_per_file"
-              className="input-pill"
-              value={formData.segments_per_file || ''}
-              onChange={handleInputChange}
-              min="1"
-              max="16"
-              style={{ width: '100%' }}
-            />
-          </div>
-          <button
-            className="btn btn-primary"
-            style={{ marginTop: '10px' }}
-            onClick={handleSaveChanges}
-            disabled={isPending}
+    <div id="view-settings" className="view-container active settings-page">
+      <div className="settings-header">
+        <h2 className="settings-title">Settings</h2>
+        <p className="settings-desc">
+          Manage your download preferences and application configuration.
+        </p>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">
+          <svg
+            className="icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            {isPending ? 'Saving...' : 'Save Changes'}
-          </button>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Downloads
         </div>
+
+        <div className="settings-row">
+          <label className="settings-label">Download Path</label>
+          <div className="settings-input-group">
+            <input
+              type="text"
+              name="download_dir"
+              className="settings-input"
+              value={formData.download_dir || ''}
+              readOnly={isAndroid}
+              onChange={handleInputChange}
+              style={{ opacity: isAndroid ? 0.7 : 1 }}
+            />
+            <button
+              className="btn-download-primary"
+              style={{
+                width: 'auto',
+                padding: '12px 24px',
+                fontSize: '14px',
+                whiteSpace: 'nowrap',
+              }}
+              onClick={handleBrowse}
+            >
+              {isAndroid ? 'Set Public' : 'Browse'}
+            </button>
+          </div>
+          {isAndroid && (
+            <p className="settings-hint">
+              On Android, downloads are restricted to public folders.
+            </p>
+          )}
+        </div>
+
+        <div className="settings-row">
+          <label className="settings-label">Max Concurrent Downloads</label>
+          <input
+            type="number"
+            name="max_concurrent_downloads"
+            className="settings-input"
+            value={formData.max_concurrent_downloads || ''}
+            onChange={handleInputChange}
+            min="1"
+            max="10"
+          />
+          <p className="settings-hint">
+            Recommended: 3-5 for stable performance.
+          </p>
+        </div>
+
+        <div className="settings-row">
+          <label className="settings-label">Segments Per File</label>
+          <input
+            type="number"
+            name="segments_per_file"
+            className="settings-input"
+            value={formData.segments_per_file || ''}
+            onChange={handleInputChange}
+            min="1"
+            max="16"
+          />
+          <p className="settings-hint">
+            Higher segments can increase speed but consume more resources.
+          </p>
+        </div>
+      </div>
+
+      <div className="settings-actions">
+        <button
+          className="btn-download-primary"
+          onClick={handleSaveChanges}
+          disabled={isPending}
+          style={{ width: '100%', padding: '16px', fontSize: '16px' }}
+        >
+          {isPending ? 'Saving Preferences...' : 'Save Changes'}
+        </button>
       </div>
     </div>
   );
