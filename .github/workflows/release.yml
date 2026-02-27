@@ -65,7 +65,7 @@ jobs:
           echo "$TAURI_SIGNING_PRIVATE_KEY" | grep -q "BEGIN" || (echo "TAURI_SIGNING_PRIVATE_KEY looks malformed" && exit 1)
 
       - name: Build and publish Tauri release
-        uses: tauri-apps/tauri-action@v1
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
