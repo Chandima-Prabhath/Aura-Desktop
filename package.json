@@ -1,7 +1,7 @@
 {
   "name": "aura-desktop",
   "private": false,
-  "version": "0.0.2",
+  "version": "0.0.6",
   "description": "🚀 A modern desktop app boilerplate built with Tauri v2, Tailwind CSS v4, shadcn/ui, React 18, and TypeScript. Features glassmorphism design, blazing-fast performance, and developer experience.",
   "type": "module",
   "keywords": [
@@ -34,16 +34,17 @@
   },
   "homepage": "https://github.com/wabisabi/tauri-shadcn-tailwind-boilerplate#readme",
   "scripts": {
+    "version:sync": "bun scripts/sync-version.mjs",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "bun run version:sync && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:dev": "bun run version:sync && tauri dev",
+    "tauri:build": "bun run version:sync && tauri build",
     "tauri:android-init": "tauri android init",
-    "tauri:android-build": "tauri android build",
-    "tauri:android-dev": "tauri android dev"
+    "tauri:android-build": "bun run version:sync && tauri android build",
+    "tauri:android-dev": "bun run version:sync && tauri android dev"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
