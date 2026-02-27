@@ -21,6 +21,16 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "endpoints": [
+        "$AURA_UPDATE_ENDPOINT"
+      ],
+      "pubkey": "$AURA_UPDATER_PUBKEY"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

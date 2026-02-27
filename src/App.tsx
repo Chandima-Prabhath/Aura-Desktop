@@ -1,19 +1,26 @@
 // src/App.tsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { platform } from '@tauri-apps/plugin-os';
 import { useResponsive } from './hooks/use-responsive';
 import Sidebar from './components/Sidebar';
 import BottomNavBar from './components/BottomNavBar';
-import TopBar from './components/TopBar';
+import TopBar, { AppNotification } from './components/TopBar';
 import HomeView from './components/HomeView';
 import SearchView from './components/SearchView';
 import DetailsView from './components/DetailsView';
 import DownloadsView from './components/DownloadsView';
 import SettingsView from './components/SettingsView';
-import type { AnimeSearchResult } from './lib/api/types';
+import { getDownloadBuckets } from './lib/api/tauri';
+import { parseTaskStatus, type AnimeSearchResult } from './lib/api/types';
 
 type ViewName = 'home' | 'search' | 'details' | 'downloads' | 'settings';
 
 type SearchViewData = { query?: string };
+type PendingUpdate = {
+    version: string;
+    downloadAndInstall: () => Promise<void>;
+};
 type ViewState =
     | { view: 'home'; key: number }
     | { view: 'search'; key: number; data?: SearchViewData }
@@ -38,6 +45,11 @@ function App() {
     const currentView = history[history.length - 1];
 
     const [toasts, setToasts] = useState<Toast[]>([]);
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    const [updateNotificationId, setUpdateNotificationId] = useState<string | null>(null);
+    const [pendingUpdate, setPendingUpdate] = useState<PendingUpdate | null>(null);
+    const lastTaskStatuses = useRef<Record<string, string>>({});
+    const hasTaskBaseline = useRef(false);
 
     const showToast = (message: string, type: Toast['type']) => {
         const newToast: Toast = { id: Date.now(), message, type };
@@ -46,6 +58,122 @@ function App() {
             setToasts(allToasts => allToasts.filter(t => t.id !== newToast.id));
         }, 3500);
     };
+
+    const pushNotification = useCallback(
+        (notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'> & { dedupeKey?: string }) => {
+            const id = notification.dedupeKey || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            setNotifications((prev) => {
+                if (notification.dedupeKey && prev.some((n) => n.id === notification.dedupeKey)) {
+                    return prev;
+                }
+                return [
+                    {
+                        id,
+                        title: notification.title,
+                        message: notification.message,
+                        level: notification.level,
+                        createdAt: Date.now(),
+                        read: false,
+                        actionLabel: notification.actionLabel,
+                    },
+                    ...prev,
+                ].slice(0, 100);
+            });
+            return id;
+        },
+        []
+    );
+
+    const { data: downloadBuckets } = useQuery({
+        queryKey: ['downloads-notifications'],
+        queryFn: getDownloadBuckets,
+        refetchInterval: 3000,
+    });
+
+    useEffect(() => {
+        if (!downloadBuckets) return;
+        const currentMap: Record<string, string> = {};
+
+        const allJobs = [...downloadBuckets.active, ...downloadBuckets.completed];
+        for (const job of allJobs) {
+            for (const task of job.tasks) {
+                const parsed = parseTaskStatus(task.status);
+                const snapshot = `${parsed.kind}:${parsed.detail ?? ''}`;
+                currentMap[task.id] = snapshot;
+            }
+        }
+
+        if (!hasTaskBaseline.current) {
+            lastTaskStatuses.current = currentMap;
+            hasTaskBaseline.current = true;
+            return;
+        }
+
+        for (const job of allJobs) {
+            for (const task of job.tasks) {
+                const parsed = parseTaskStatus(task.status);
+                const current = `${parsed.kind}:${parsed.detail ?? ''}`;
+                const previous = lastTaskStatuses.current[task.id];
+                if (!previous || previous === current) continue;
+
+                if (parsed.kind === 'Completed') {
+                    pushNotification({
+                        dedupeKey: `done:${task.id}`,
+                        level: 'success',
+                        title: 'Download completed',
+                        message: `${job.name} - ${task.filename}`,
+                    });
+                } else if (parsed.kind === 'Paused' && parsed.detail === 'LinkExpired') {
+                    pushNotification({
+                        dedupeKey: `expired:${task.id}`,
+                        level: 'warning',
+                        title: 'Link expired',
+                        message: `Tap Resume to fetch a fresh link for ${task.filename}.`,
+                    });
+                } else if (parsed.kind === 'Paused' && parsed.detail === 'NetworkError') {
+                    pushNotification({
+                        dedupeKey: `net:${task.id}`,
+                        level: 'warning',
+                        title: 'Network interrupted',
+                        message: `${task.filename} is waiting for network.`,
+                    });
+                } else if (parsed.kind === 'Error') {
+                    pushNotification({
+                        dedupeKey: `err:${task.id}`,
+                        level: 'error',
+                        title: 'Download failed',
+                        message: `${task.filename} needs retry.`,
+                    });
+                }
+            }
+        }
+
+        lastTaskStatuses.current = currentMap;
+    }, [downloadBuckets, pushNotification]);
+
+    useEffect(() => {
+        const checkForUpdates = async () => {
+            if (platform() === 'android') return;
+            try {
+                const { check } = await import('@tauri-apps/plugin-updater');
+                const update = await check();
+                if (update) {
+                    setPendingUpdate(update as PendingUpdate);
+                    const id = pushNotification({
+                        dedupeKey: `update:${update.version}`,
+                        level: 'info',
+                        title: 'Update available',
+                        message: `Version ${update.version} is ready.`,
+                        actionLabel: 'Install',
+                    });
+                    setUpdateNotificationId(id);
+                }
+            } catch (err) {
+                console.error('Update check failed:', err);
+            }
+        };
+        checkForUpdates();
+    }, [pushNotification]);
 
     // --- Navigation Logic ---
 
@@ -140,6 +268,23 @@ function App() {
         setHistory([{ view: 'downloads', key: Date.now() }]);
     };
 
+    const markAllNotificationsRead = () => {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    };
+
+    const handleNotificationAction = async (notificationId: string) => {
+        if (!updateNotificationId || notificationId !== updateNotificationId || !pendingUpdate) return;
+
+        try {
+            await pendingUpdate.downloadAndInstall();
+            const { relaunch } = await import('@tauri-apps/plugin-process');
+            await relaunch();
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to install update';
+            showToast(message, 'error');
+        }
+    };
+
     const renderCurrentView = () => {
         switch (currentView.view) {
             case 'home':
@@ -193,6 +338,9 @@ function App() {
                 <TopBar
                     pageTitle={pageTitle}
                     canGoBack={history.length > 1}
+                    notifications={notifications}
+                    onMarkAllRead={markAllNotificationsRead}
+                    onNotificationAction={handleNotificationAction}
                     onGoBack={() => {
                         if (history.length > 1) {
                             window.history.back();

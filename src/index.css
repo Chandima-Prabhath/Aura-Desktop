@@ -253,6 +253,15 @@ body {
     animation: fadeIn 0.2s;
 }
 
+.notif-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+}
+
 .notif-item {
     padding: 10px 12px;
     border-radius: 8px;
