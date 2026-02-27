@@ -274,9 +274,15 @@ impl DownloadManager {
 
             for task in &mut job.tasks {
                 if task_id.is_none() || task_id.as_ref() == Some(&task.id) {
+                    let should_refresh_link = match &task.status {
+                        TaskStatus::Error(_) => true,
+                        TaskStatus::Paused(PauseReason::UserRequest) => false,
+                        TaskStatus::Paused(_) => true,
+                        _ => false,
+                    };
                     if matches!(task.status, TaskStatus::Paused(_) | TaskStatus::Error(_)) {
                         task_ids_to_clear.push(task.id.clone());
-                        if task.episode_url.is_some() && task.gate_id.is_some() {
+                        if should_refresh_link && task.episode_url.is_some() && task.gate_id.is_some() {
                             task.url = "pending".to_string();
                         }
                         task.status = TaskStatus::Pending;
@@ -480,19 +486,6 @@ async fn download_task_worker(
     
     tracing::info!("Download target for task {}: {:?}", task_id, final_path);
 
-    // Mark as downloading
-    {
-        let mut jobs_lock = jobs.lock().unwrap();
-        if let Some(job) = jobs_lock.iter_mut().find(|j| j.id == job_id) {
-            if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
-                task.status = TaskStatus::Downloading;
-                // Update the task filename to the sanitized one so we can find it later
-                task.filename = sanitized_filename.clone();
-            }
-        }
-    }
-    save_jobs(&jobs);
-
     // Create parts folder
     if let Some(parent) = final_path.parent() {
         tokio::fs::create_dir_all(parent).await?;
@@ -611,6 +604,18 @@ async fn download_task_worker(
                         }
                     }
                 }
+            }
+        }
+    }
+    save_jobs(&jobs);
+
+    // Task is now fully initialized and ready to transfer bytes.
+    {
+        let mut jobs_lock = jobs.lock().unwrap();
+        if let Some(job) = jobs_lock.iter_mut().find(|j| j.id == job_id) {
+            if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
+                task.status = TaskStatus::Downloading;
+                task.filename = sanitized_filename.clone();
             }
         }
     }

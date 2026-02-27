@@ -33,11 +33,17 @@ const DownloadsView: React.FC = () => {
 
   const renderStatus = (status: DownloadTask['status']) => {
     const parsed = parseTaskStatus(status);
+    if (parsed.kind === 'Pending') {
+      return 'Queued';
+    }
     if (parsed.kind === 'Paused') {
-      return `Paused (${parsed.detail})`;
+      if (parsed.detail === 'UserRequest') return 'Paused';
+      if (parsed.detail === 'NetworkError') return 'Waiting for network';
+      if (parsed.detail === 'LinkExpired') return 'Link expired';
+      return 'Paused';
     }
     if (parsed.kind === 'Error') {
-      return `Error (${parsed.detail})`;
+      return 'Retry needed';
     }
     return parsed.kind;
   };
