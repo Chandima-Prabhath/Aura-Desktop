@@ -2,9 +2,10 @@ import React, { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import AuraLoader from '../AuraLoader';
 import { getPopularAnime, getNewAnime } from '../../lib/api/tauri';
+import type { AnimeListEntry, AnimeSearchResult } from '../../lib/api/types';
 
 interface HomeViewProps {
-  onNavigate: (view: string, data?: any) => void;
+  onNavigate: (view: string, data?: AnimeSearchResult) => void;
   showToast: (
     message: string,
     type: 'success' | 'warning' | 'error' | 'info'
@@ -71,7 +72,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
           </div>
         </div>
         <div className="horizontal-scroll" ref={popularScrollRef}>
-          {popularAnime?.map((anime) => (
+          {popularAnime?.map((anime: AnimeListEntry) => (
             <div
               key={anime.url}
               className="anime-card-horizontal"
@@ -102,7 +103,7 @@ const HomeView: React.FC<HomeViewProps> = ({ onNavigate, showToast }) => {
           </div>
         </div>
         <div className="horizontal-scroll" ref={newScrollRef}>
-          {newAnime?.map((anime) => (
+          {newAnime?.map((anime: AnimeListEntry) => (
             <div
               key={anime.url}
               className="anime-card-horizontal"

@@ -9,14 +9,17 @@ import SearchView from './components/SearchView';
 import DetailsView from './components/DetailsView';
 import DownloadsView from './components/DownloadsView';
 import SettingsView from './components/SettingsView';
+import type { AnimeSearchResult } from './lib/api/types';
 
 type ViewName = 'home' | 'search' | 'details' | 'downloads' | 'settings';
 
-interface ViewState {
-    view: ViewName;
-    data?: any;
-    key: number; // Unique key to force re-render if needed or track uniqueness
-}
+type SearchViewData = { query?: string };
+type ViewState =
+    | { view: 'home'; key: number }
+    | { view: 'search'; key: number; data?: SearchViewData }
+    | { view: 'details'; key: number; data: AnimeSearchResult }
+    | { view: 'downloads'; key: number }
+    | { view: 'settings'; key: number };
 
 interface Toast {
     id: number;
@@ -46,7 +49,7 @@ function App() {
 
     // --- Navigation Logic ---
 
-    const pushView = useCallback((view: ViewName, data?: any) => {
+    const pushView = useCallback((view: ViewName, data?: SearchViewData | AnimeSearchResult) => {
         setHistory(prev => {
             // Prevent duplicate adjacent views if needed, or just push
             // If pushing the same view type, we generally want to allow it? 
@@ -61,20 +64,13 @@ function App() {
             // will trigger a 'popstate' event instead of exiting the app.
             window.history.pushState({ view }, "");
 
-            return [...prev, { view, data, key: Date.now() }];
-        });
-    }, []);
-
-    const popView = useCallback(() => {
-        setHistory(prev => {
-            if (prev.length <= 1) {
-                // Determine if we should exit app?
-                // On Android, if we are at root, we might want to let the system handle it (minimize/exit)
-                // But for now, let's just stay at Home
-                return prev;
+            if (view === 'details') {
+                return [...prev, { view, data: data as AnimeSearchResult, key: Date.now() }];
             }
-            const newHistory = prev.slice(0, -1);
-            return newHistory;
+            if (view === 'search') {
+                return [...prev, { view, data: data as SearchViewData | undefined, key: Date.now() }];
+            }
+            return [...prev, { view, key: Date.now() }];
         });
     }, []);
 
@@ -104,7 +100,7 @@ function App() {
     }, []);
 
 
-    const handleNavigate = (view: string, data?: any) => {
+    const handleNavigate = (view: string, data?: SearchViewData | AnimeSearchResult) => {
         // If navigation comes from Sidebar/BottomBar, usually we want to 'Reset' stack to that root?
         // OR simply Push it?
         // Standard mobile app pattern: Tab change switches root context or pushes?
@@ -121,7 +117,16 @@ function App() {
             // Let's try just pushing for now, but that builds infinite stack.
             // Better: If switching to a main Tab, Reset stack to [Tab].
 
-            setHistory([{ view: view as ViewName, key: Date.now() }]);
+            const rootState: ViewState =
+                view === 'home'
+                    ? { view: 'home', key: Date.now() }
+                    : view === 'search'
+                        ? { view: 'search', key: Date.now() }
+                        : view === 'downloads'
+                            ? { view: 'downloads', key: Date.now() }
+                            : { view: 'settings', key: Date.now() };
+
+            setHistory([rootState]);
             // Reset window history to keep it clean? 
             // This is tricky with Android back button.
             // Simple approach: Just pushTab.
@@ -144,15 +149,17 @@ function App() {
                     <SearchView
                         onNavigate={(v, d) => pushView(v as ViewName, d)}
                         showToast={showToast}
-                        initialQuery={currentView.data?.query}
+                        initialQuery={currentView.view === 'search' ? currentView.data?.query : undefined}
                         onSearch={(query) => {
                             setHistory((prev) => {
                                 const newHistory = [...prev];
                                 const currentIndex = newHistory.length - 1;
-                                newHistory[currentIndex] = {
-                                    ...newHistory[currentIndex],
-                                    data: { ...newHistory[currentIndex].data, query },
-                                };
+                                if (newHistory[currentIndex].view === 'search') {
+                                    newHistory[currentIndex] = {
+                                        ...newHistory[currentIndex],
+                                        data: { ...newHistory[currentIndex].data, query },
+                                    };
+                                }
                                 return newHistory;
                             });
                         }}
@@ -160,7 +167,7 @@ function App() {
                 );
             case 'details':
                 return <DetailsView
-                    anime={currentView.data}
+                    anime={currentView.view === 'details' ? currentView.data : null}
                     onDownloadsAdded={handleDownloadsAdded}
                     showToast={showToast}
                 />;

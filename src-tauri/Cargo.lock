@@ -235,6 +235,7 @@ dependencies = [
  "tauri-plugin-os",
  "tauri-plugin-shell",
  "tokio",
+ "tracing",
  "uuid",
 ]
 

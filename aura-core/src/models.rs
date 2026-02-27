@@ -64,6 +64,12 @@ pub struct DownloadJob {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadBuckets {
+    pub active: Vec<DownloadJob>,
+    pub completed: Vec<DownloadJob>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DownloadTask {
     pub id: String,
     pub url: String,

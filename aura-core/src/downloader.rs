@@ -20,6 +20,13 @@ pub async fn get_content_length(
     tracing::debug!("HEAD status: {}", head_resp.status());
     tracing::debug!("HEAD headers: {:?}", head_resp.headers());
 
+    if head_resp.status() == reqwest::StatusCode::FORBIDDEN
+        || head_resp.status() == reqwest::StatusCode::NOT_FOUND
+        || head_resp.status() == reqwest::StatusCode::GONE
+    {
+        anyhow::bail!("ExpiredLink");
+    }
+
     if head_resp.status().is_success() {
         if let Some(len) = head_resp.content_length() {
             if len > 0 {
@@ -49,6 +56,13 @@ pub async fn get_content_length(
 
     tracing::debug!("GET fallback status: {}", get_resp.status());
     tracing::debug!("GET fallback headers: {:?}", get_resp.headers());
+
+    if get_resp.status() == reqwest::StatusCode::FORBIDDEN
+        || get_resp.status() == reqwest::StatusCode::NOT_FOUND
+        || get_resp.status() == reqwest::StatusCode::GONE
+    {
+        anyhow::bail!("ExpiredLink");
+    }
 
     if get_resp.status().is_success() {
         if let Some(range) = get_resp.headers().get(reqwest::header::CONTENT_RANGE) {

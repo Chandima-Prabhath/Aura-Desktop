@@ -912,6 +912,15 @@ body {
     color: var(--primary);
     padding-bottom: 10px;
     border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.download-group-actions {
+    display: flex;
+    gap: 8px;
 }
 
 .download-item {
@@ -961,6 +970,26 @@ body {
     margin-left: auto;
     display: flex;
     gap: 10px;
+}
+
+.dl-action-btn {
+    background: rgba(168, 85, 247, 0.12);
+    border: 1px solid rgba(168, 85, 247, 0.25);
+    color: var(--primary);
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    transition: all 0.2s ease;
+}
+
+.dl-action-btn:hover:not(:disabled) {
+    background: rgba(168, 85, 247, 0.22);
+}
+
+.dl-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .btn-icon {

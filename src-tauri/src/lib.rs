@@ -1,34 +1,29 @@
-use aura_core::{AnimeInfo, DownloadManager, DownloadJob, DownloadTask, Episode, ListEntry, SearchResult, Settings, TaskStatus};
+use aura_core::{
+    AnimeInfo, DownloadBuckets, DownloadJob, DownloadManager, DownloadTask, Episode, ListEntry,
+    SearchResult, Settings, TaskStatus,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
-// ------------------------------------------------------------------
-// 1. Shared State
-// ------------------------------------------------------------------
 pub struct AppState {
     manager: Arc<DownloadManager>,
 }
 
-
-
-// ------------------------------------------------------------------
-// 2. Core Logic (Testable)
-// ------------------------------------------------------------------
-
-// ------------------------------------------------------------------
-// 2. Core Logic (Testable)
-// ------------------------------------------------------------------
+fn normalize_image_urls<T>(items: &mut [T], mut get_image: impl FnMut(&mut T) -> &mut String) {
+    for item in items {
+        let image = get_image(item);
+        if !image.starts_with("http") {
+            *image = format!("https://animeheaven.me/{}", image);
+        }
+    }
+}
 
 async fn search_anime_impl(
     manager: &Arc<DownloadManager>,
     query: &str,
 ) -> Result<Vec<SearchResult>, String> {
     let mut results = manager.get_scraper().search(query).await.map_err(|e| e.to_string())?;
-    for r in &mut results {
-        if !r.image.starts_with("http") {
-             r.image = format!("https://animeheaven.me/{}", r.image);
-        }
-    }
+    normalize_image_urls(&mut results, |r| &mut r.image);
     Ok(results)
 }
 
@@ -46,21 +41,13 @@ async fn resolve_link_impl(manager: &Arc<DownloadManager>, episode: Episode) -> 
 
 async fn get_new_releases_impl(manager: &Arc<DownloadManager>) -> Result<Vec<ListEntry>, String> {
     let mut results = manager.get_scraper().get_new().await.map_err(|e| e.to_string())?;
-    for r in &mut results {
-        if !r.image.starts_with("http") {
-             r.image = format!("https://animeheaven.me/{}", r.image);
-        }
-    }
+    normalize_image_urls(&mut results, |r| &mut r.image);
     Ok(results)
 }
 
 async fn get_popular_impl(manager: &Arc<DownloadManager>) -> Result<Vec<ListEntry>, String> {
     let mut results = manager.get_scraper().get_popular().await.map_err(|e| e.to_string())?;
-    for r in &mut results {
-        if !r.image.starts_with("http") {
-             r.image = format!("https://animeheaven.me/{}", r.image);
-        }
-    }
+    normalize_image_urls(&mut results, |r| &mut r.image);
     Ok(results)
 }
 
@@ -103,11 +90,6 @@ async fn start_download_impl(
 async fn get_downloads_impl(manager: &DownloadManager) -> Result<Vec<DownloadJob>, String> {
     Ok(manager.get_jobs())
 }
-
-
-// ------------------------------------------------------------------
-// 3. Tauri Commands
-// ------------------------------------------------------------------
 
 /// Search for anime by query
 #[tauri::command]
@@ -163,6 +145,36 @@ async fn get_downloads(state: tauri::State<'_, AppState>) -> Result<Vec<Download
 }
 
 #[tauri::command]
+async fn get_download_buckets(
+    state: tauri::State<'_, AppState>,
+) -> Result<DownloadBuckets, String> {
+    Ok(state.manager.get_job_buckets())
+}
+
+#[tauri::command]
+async fn pause_download(
+    state: tauri::State<'_, AppState>,
+    job_id: String,
+    task_id: Option<String>,
+) -> Result<(), String> {
+    state.manager.pause(job_id, task_id);
+    Ok(())
+}
+
+#[tauri::command]
+async fn resume_download(
+    state: tauri::State<'_, AppState>,
+    job_id: String,
+    task_id: Option<String>,
+) -> Result<(), String> {
+    state
+        .manager
+        .resume(job_id, task_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn get_settings(state: tauri::State<'_, AppState>) -> Result<Settings, String> {
     Ok(state.manager.get_settings())
 }
@@ -176,12 +188,6 @@ async fn update_settings(state: tauri::State<'_, AppState>, settings: Settings) 
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
-
-
-
-// ------------------------------------------------------------------
-// 3. App Builder
-// ------------------------------------------------------------------
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -200,7 +206,7 @@ pub fn run() {
             };
             
             let config_path = app_config_dir.to_string_lossy().to_string();
-            println!("[Aura] Using config path: {}", config_path);
+            tracing::info!("Using config path: {}", config_path);
 
             // Initialize DownloadManager with custom path
             let manager = match DownloadManager::new(Some(config_path)) {
@@ -210,7 +216,7 @@ pub fn run() {
 
             app.manage(AppState { manager: Arc::new(manager) });
             
-            println!("[Aura] Core initialized with DownloadManager.");
+            tracing::info!("Core initialized with DownloadManager.");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -221,6 +227,9 @@ pub fn run() {
             get_popular,
             start_download,
             get_downloads,
+            get_download_buckets,
+            pause_download,
+            resume_download,
             get_settings,
             update_settings,
             greet
@@ -229,7 +238,7 @@ pub fn run() {
         .expect("error while running tauri application")
         .run(|_app_handle, event| {
             if let tauri::RunEvent::ExitRequested { .. } = event {
-                println!("[Aura] Shutting down...");
+                tracing::info!("Shutting down...");
             }
         });
 }

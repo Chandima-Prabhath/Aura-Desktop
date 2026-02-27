@@ -1,12 +1,16 @@
 use crate::config::Settings;
 use crate::downloader::get_content_length;
 use crate::models::{
-    DownloadJob, Episode, PauseReason, Segment, SegmentStatus, TaskStatus,
+    DownloadBuckets, DownloadJob, Episode, PauseReason, Segment, SegmentStatus, TaskStatus,
 };
 use crate::scraper::AnimeScraper;
 use anyhow::{anyhow, Result};
 use std::fs;
-use std::sync::{atomic::{AtomicU64, Ordering}, Arc, Mutex, RwLock};
+use std::collections::HashMap;
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc, Mutex, RwLock,
+};
 use std::time::Duration;
 use tokio::sync::Semaphore;
 
@@ -18,6 +22,7 @@ pub struct DownloadManager {
     semaphore: Arc<Semaphore>,
     jobs_path: String,
     scraper: Arc<AnimeScraper>,
+    cancel_flags: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
 }
 
 impl DownloadManager {
@@ -58,6 +63,17 @@ impl DownloadManager {
                         }
                     }
                 }
+                if matches!(task.status, TaskStatus::Error(_))
+                    && task.episode_url.is_some()
+                    && task.gate_id.is_some()
+                {
+                    task.status = TaskStatus::Paused(PauseReason::NetworkError);
+                    for seg in &mut task.segments {
+                        if seg.status == SegmentStatus::Downloading || seg.status == SegmentStatus::Error {
+                            seg.status = SegmentStatus::Pending;
+                        }
+                    }
+                }
             }
         }
 
@@ -67,6 +83,7 @@ impl DownloadManager {
             semaphore,
             jobs_path,
             scraper,
+            cancel_flags: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -76,6 +93,15 @@ impl DownloadManager {
 
     pub fn get_jobs(&self) -> Vec<DownloadJob> {
         self.jobs.lock().unwrap().clone()
+    }
+
+    pub fn get_job_buckets(&self) -> DownloadBuckets {
+        let jobs = self.jobs.lock().unwrap().clone();
+        let (completed, active): (Vec<_>, Vec<_>) = jobs
+            .into_iter()
+            .partition(|job| job.tasks.iter().all(|t| t.status == TaskStatus::Completed));
+
+        DownloadBuckets { active, completed }
     }
 
     /// Get current settings
@@ -212,6 +238,7 @@ impl DownloadManager {
             let semaphore_ref = self.semaphore.clone();
             let settings_ref = self.settings.clone();
             let scraper_ref = self.scraper.clone();
+            let cancel_flags_ref = self.cancel_flags.clone();
             let job_id_clone = job_id.clone();
             let jobs_path = self.jobs_path.clone();
 
@@ -223,11 +250,11 @@ impl DownloadManager {
                     settings_ref,
                     semaphore_ref,
                     scraper_ref,
+                    cancel_flags_ref,
                     jobs_path,
                 )
                 .await
                 {
-                    println!("[Aura] Download failed: {}", e);
                     tracing::error!("Download failed: {}", e);
                 }
             });
@@ -237,6 +264,7 @@ impl DownloadManager {
     }
 
     pub async fn resume(&self, job_id: String, task_id: Option<String>) -> Result<()> {
+        let mut task_ids_to_clear = Vec::new();
         {
             let mut jobs = self.jobs.lock().unwrap();
             let job = jobs
@@ -246,17 +274,26 @@ impl DownloadManager {
 
             for task in &mut job.tasks {
                 if task_id.is_none() || task_id.as_ref() == Some(&task.id) {
-                    match task.status {
-                        TaskStatus::Paused(_) | TaskStatus::Error(_) => {
-                            task.status = TaskStatus::Pending;
-                            for seg in &mut task.segments {
-                                if seg.status == SegmentStatus::Error {
-                                    seg.status = SegmentStatus::Pending;
-                                }
+                    if matches!(task.status, TaskStatus::Paused(_) | TaskStatus::Error(_)) {
+                        task_ids_to_clear.push(task.id.clone());
+                        if task.episode_url.is_some() && task.gate_id.is_some() {
+                            task.url = "pending".to_string();
+                        }
+                        task.status = TaskStatus::Pending;
+                        for seg in &mut task.segments {
+                            if seg.status == SegmentStatus::Error {
+                                seg.status = SegmentStatus::Pending;
                             }
                         }
-                        _ => {}
                     }
+                }
+            }
+        }
+        if !task_ids_to_clear.is_empty() {
+            let flags = self.cancel_flags.lock().unwrap();
+            for task_id in task_ids_to_clear {
+                if let Some(flag) = flags.get(&task_id) {
+                    flag.store(false, Ordering::Relaxed);
                 }
             }
         }
@@ -267,15 +304,26 @@ impl DownloadManager {
     }
 
     pub fn pause(&self, job_id: String, task_id: Option<String>) {
-        let mut jobs = self.jobs.lock().unwrap();
-        if let Some(job) = jobs.iter_mut().find(|j| j.id == job_id) {
-            for task in &mut job.tasks {
-                if task_id.is_none() || task_id.as_ref() == Some(&task.id) {
-                    task.status = TaskStatus::Paused(PauseReason::UserRequest);
+        let mut task_ids_to_cancel = Vec::new();
+        {
+            let mut jobs = self.jobs.lock().unwrap();
+            if let Some(job) = jobs.iter_mut().find(|j| j.id == job_id) {
+                for task in &mut job.tasks {
+                    if task_id.is_none() || task_id.as_ref() == Some(&task.id) {
+                        task_ids_to_cancel.push(task.id.clone());
+                        task.status = TaskStatus::Paused(PauseReason::UserRequest);
+                    }
                 }
             }
         }
-        drop(jobs);
+        if !task_ids_to_cancel.is_empty() {
+            let flags = self.cancel_flags.lock().unwrap();
+            for task_id in task_ids_to_cancel {
+                if let Some(flag) = flags.get(&task_id) {
+                    flag.store(true, Ordering::Relaxed);
+                }
+            }
+        }
         self.save_jobs();
     }
 
@@ -295,6 +343,7 @@ async fn download_task_worker(
     settings_store: Arc<RwLock<Settings>>,
     semaphore: Arc<Semaphore>,
     scraper: Arc<AnimeScraper>,
+    cancel_flags: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
     jobs_path: String,
 ) -> Result<()> {
     // Helper to save jobs
@@ -303,6 +352,16 @@ async fn download_task_worker(
         if let Ok(data) = serde_json::to_string_pretty(&*jobs_lock) {
             let _ = fs::write(&jobs_path, data);
         }
+    };
+
+    let cancel_flag = {
+        let mut flags = cancel_flags.lock().unwrap();
+        let flag = flags
+            .entry(task_id.clone())
+            .or_insert_with(|| Arc::new(AtomicBool::new(false)))
+            .clone();
+        flag.store(false, Ordering::Relaxed);
+        flag
     };
 
     // Get task info
@@ -321,19 +380,19 @@ async fn download_task_worker(
         // Skip if already completed or not pending
         match task.status {
             TaskStatus::Completed => {
-                println!("[Aura] Task {} already completed.", task_id);
+                tracing::debug!("Task {} already completed.", task_id);
                 return Ok(());
             },
             TaskStatus::Downloading => {
-                println!("[Aura] Task {} already downloading.", task_id);
+                tracing::debug!("Task {} already downloading.", task_id);
                 return Ok(());
             }, 
             TaskStatus::Paused(_) | TaskStatus::Error(_) => {
-                println!("[Aura] Task {} is paused or error.", task_id);
+                tracing::debug!("Task {} is paused or error.", task_id);
                 return Ok(());
             },
             TaskStatus::Pending => {
-                println!("[Aura] Task {} is pending. Starting...", task_id);
+                tracing::info!("Task {} is pending. Starting...", task_id);
             } 
         }
 
@@ -349,7 +408,7 @@ async fn download_task_worker(
 
     // Resolve URL if pending
     if url == "pending" {
-        println!("[Aura] URL is pending for task {}. Resolving...", task_id);
+        tracing::info!("URL is pending for task {}. Resolving...", task_id);
         if let (Some(ep_url), Some(gid), Some(eno)) = (&episode_url, &gate_id, episode_number) {
              let temp_ep = Episode {
                  name: "".to_string(),
@@ -360,7 +419,7 @@ async fn download_task_worker(
              
              match scraper.get_download_link(&temp_ep).await {
                  Ok(resolved_url) => {
-                     println!("[Aura] Link resolved successfully: {}", resolved_url);
+                     tracing::info!("Link resolved successfully for task {}", task_id);
                      url = resolved_url.clone();
                      
                      // Persist resolved URL
@@ -376,7 +435,7 @@ async fn download_task_worker(
                  },
                  Err(e) => {
                      let msg = format!("Failed to resolve link: {}", e);
-                     println!("[Aura] {}", msg);
+                     tracing::error!("{}", msg);
                      return Err(anyhow::anyhow!(msg));
                  }
              }
@@ -385,11 +444,11 @@ async fn download_task_worker(
         }
     }
 
-    println!("[Aura] Acquiring semaphore for task {}...", task_id);
+    tracing::debug!("Acquiring semaphore for task {}...", task_id);
     // Acquire semaphore permit to limit concurrency
     // This will wait here until a slot is available
     let _permit = semaphore.acquire().await.map_err(|e| anyhow::anyhow!("Semaphore closed: {}", e))?;
-    println!("[Aura] Semaphore acquired for task {}.", task_id);
+    tracing::debug!("Semaphore acquired for task {}.", task_id);
 
     // Setup paths
     // FIXED: Use configured download_dir instead of saving to CWD
@@ -411,7 +470,7 @@ async fn download_task_worker(
     let anime_folder = download_dir.join(&sanitized_job_name);
     // Ensure anime folder exists
     if let Err(e) = tokio::fs::create_dir_all(&anime_folder).await {
-         println!("[Aura] Failed to create anime folder: {}", e);
+         tracing::warn!("Failed to create anime folder: {}", e);
     }
 
     let final_path = anime_folder.join(&sanitized_filename);
@@ -419,7 +478,7 @@ async fn download_task_worker(
     let parts_folder_name = format!("{}.downloading", file_stem);
     let parts_folder = anime_folder.join(&parts_folder_name);
     
-    println!("[Aura] Download target: {:?}", final_path);
+    tracing::info!("Download target for task {}: {:?}", task_id, final_path);
 
     // Mark as downloading
     {
@@ -444,37 +503,88 @@ async fn download_task_worker(
     let client = reqwest::Client::new();
     let current_settings = settings_store.read().unwrap().clone();
     
-    println!("[Aura] Fetching content length for: {}", url);
-    let total_size = match get_content_length(&client, &url, &current_settings.user_agent).await {
-        Ok(size) => {
-            let mut jobs_guard = jobs.lock().unwrap();
-            if let Some(job) = jobs_guard.iter_mut().find(|j| j.id == job_id) {
-                if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
-                    task.total_bytes = size;
-                    if task.segments.is_empty() {
-                        task.segments = create_segments(size, current_settings.segments_per_file);
+    let mut size_refresh_attempts = 0u32;
+    let total_size = loop {
+        tracing::debug!("Fetching content length for task {}.", task_id);
+        match get_content_length(&client, &url, &current_settings.user_agent).await {
+            Ok(size) => {
+                let mut jobs_guard = jobs.lock().unwrap();
+                if let Some(job) = jobs_guard.iter_mut().find(|j| j.id == job_id) {
+                    if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
+                        task.total_bytes = size;
+                        if task.segments.is_empty() {
+                            task.segments = create_segments(size, current_settings.segments_per_file);
+                        }
                     }
                 }
+                drop(jobs_guard);
+                save_jobs(&jobs);
+                break size;
             }
-            drop(jobs_guard);
-            save_jobs(&jobs);
-            size
-        }
-        Err(e) => {
-            let mut jobs_guard = jobs.lock().unwrap();
-            if let Some(job) = jobs_guard.iter_mut().find(|j| j.id == job_id) {
-                if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
-                    task.status = TaskStatus::Error(e.to_string());
+            Err(e) => {
+                let err = e.to_string();
+                if err.contains("ExpiredLink") && size_refresh_attempts < MAX_LINK_REFRESH_ATTEMPTS {
+                    size_refresh_attempts += 1;
+                    tracing::info!(
+                        "Link expired before download, attempting refresh ({}/{})",
+                        size_refresh_attempts,
+                        MAX_LINK_REFRESH_ATTEMPTS
+                    );
+
+                    if let (Some(ep_url), Some(g_id)) = (&episode_url, &gate_id) {
+                        let episode = Episode {
+                            name: "Refresh".to_string(),
+                            number: episode_number.unwrap_or(0),
+                            url: ep_url.clone(),
+                            gate_id: g_id.clone(),
+                        };
+
+                        match scraper.get_download_link(&episode).await {
+                            Ok(new_url) => {
+                                url = new_url.clone();
+                                let mut jobs_guard = jobs.lock().unwrap();
+                                if let Some(job) = jobs_guard.iter_mut().find(|j| j.id == job_id) {
+                                    if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
+                                        task.url = new_url;
+                                    }
+                                }
+                                drop(jobs_guard);
+                                save_jobs(&jobs);
+                                continue;
+                            }
+                            Err(refresh_err) => {
+                                tracing::error!("Failed to refresh before download: {}", refresh_err);
+                            }
+                        }
+                    }
+
+                    let mut jobs_guard = jobs.lock().unwrap();
+                    if let Some(job) = jobs_guard.iter_mut().find(|j| j.id == job_id) {
+                        if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
+                            task.status = TaskStatus::Paused(PauseReason::LinkExpired);
+                        }
+                    }
+                    drop(jobs_guard);
+                    save_jobs(&jobs);
+                    return Ok(());
                 }
+
+                let mut jobs_guard = jobs.lock().unwrap();
+                if let Some(job) = jobs_guard.iter_mut().find(|j| j.id == job_id) {
+                    if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
+                        task.status = TaskStatus::Error(err);
+                    }
+                }
+                drop(jobs_guard);
+                save_jobs(&jobs);
+                return Err(e);
             }
-            drop(jobs_guard);
-            save_jobs(&jobs);
-            return Err(e);
         }
     };
 
     let num_parts = current_settings.segments_per_file;
     let mut link_refresh_attempts = 0u32;
+    let mut transient_error_backoff_step = 0u32;
 
     // Check which parts already exist (for resume)
     for i in 0..num_parts {
@@ -609,6 +719,7 @@ async fn download_task_worker(
                 segment.end,
                 &part_path,
                 current_segment_progress.clone(),
+                cancel_flag.clone(),
             )
             .await;
 
@@ -634,13 +745,28 @@ async fn download_task_worker(
                     drop(jobs_guard);
                     save_jobs(&jobs);
                     link_refresh_attempts = 0;
+                    transient_error_backoff_step = 0;
                 }
                 Err(e) => {
                     let err = e.to_string();
                     // Delete partial part file
                     let _ = tokio::fs::remove_file(&part_path).await;
-                    
-                    if err.contains("ExpiredLink") {
+
+                    if err.contains("PausedByUser") {
+                        let mut jobs_guard = jobs.lock().unwrap();
+                        if let Some(job) = jobs_guard.iter_mut().find(|j| j.id == job_id) {
+                            if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
+                                if let Some(seg) =
+                                    task.segments.iter_mut().find(|s| s.index == segment.index)
+                                {
+                                    seg.status = SegmentStatus::Pending;
+                                }
+                            }
+                        }
+                        drop(jobs_guard);
+                        save_jobs(&jobs);
+                        return Ok(());
+                    } else if err.contains("ExpiredLink") {
                         // Reset segment
                         {
                             let mut jobs_guard = jobs.lock().unwrap();
@@ -713,18 +839,29 @@ async fn download_task_worker(
                         return Ok(());
                     } else {
                         // Other error - reset segment for retry
-                        let mut jobs_guard = jobs.lock().unwrap();
-                        if let Some(job) = jobs_guard.iter_mut().find(|j| j.id == job_id) {
-                            if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
-                                if let Some(seg) =
-                                    task.segments.iter_mut().find(|s| s.index == segment.index)
-                                {
-                                    seg.status = SegmentStatus::Pending;
+                        transient_error_backoff_step = transient_error_backoff_step.saturating_add(1);
+                        let backoff_ms = (250u64)
+                            .saturating_mul(2u64.saturating_pow(transient_error_backoff_step.min(4)));
+
+                        {
+                            let mut jobs_guard = jobs.lock().unwrap();
+                            if let Some(job) = jobs_guard.iter_mut().find(|j| j.id == job_id) {
+                                if let Some(task) = job.tasks.iter_mut().find(|t| t.id == task_id) {
+                                    if let Some(seg) =
+                                        task.segments.iter_mut().find(|s| s.index == segment.index)
+                                    {
+                                        seg.status = SegmentStatus::Pending;
+                                    }
                                 }
                             }
                         }
-                        drop(jobs_guard);
                         save_jobs(&jobs);
+                        tracing::warn!(
+                            "Transient segment error for task {}. Backing off for {}ms.",
+                            task_id,
+                            backoff_ms
+                        );
+                        tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
                     }
                 }
             }
@@ -775,6 +912,7 @@ async fn download_part_to_file(
     end: u64,
     filepath: &std::path::Path,
     current_progress: Arc<AtomicU64>,
+    cancel_flag: Arc<AtomicBool>,
 ) -> Result<()> {
     use tokio::io::AsyncWriteExt;
     
@@ -803,6 +941,9 @@ async fn download_part_to_file(
     const PROGRESS_UPDATE_THRESHOLD: u64 = 512 * 1024; 
 
     while let Some(chunk) = resp.chunk().await? {
+        if cancel_flag.load(Ordering::Relaxed) {
+            anyhow::bail!("PausedByUser");
+        }
         file.write_all(&chunk).await?;
         accumulated_progress += chunk.len() as u64;
         

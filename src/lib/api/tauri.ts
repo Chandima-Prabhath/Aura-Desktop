@@ -1,5 +1,13 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { AnimeSearchResult, AnimeInfo, AnimeListEntry, Episode, DownloadJob, Settings } from './types';
+import type {
+    AnimeSearchResult,
+    AnimeInfo,
+    AnimeListEntry,
+    Episode,
+    DownloadJob,
+    DownloadBuckets,
+    Settings,
+} from './types';
 
 export const searchAnime = async (query: string): Promise<AnimeSearchResult[]> => {
     return await invoke('search_anime', { query });
@@ -27,6 +35,18 @@ export const startDownload = async (anime_title: string, episodes: Episode[]): P
 
 export const getDownloads = async (): Promise<DownloadJob[]> => {
     return await invoke('get_downloads');
+};
+
+export const getDownloadBuckets = async (): Promise<DownloadBuckets> => {
+    return await invoke('get_download_buckets');
+};
+
+export const pauseDownload = async (jobId: string, taskId?: string): Promise<void> => {
+    return await invoke('pause_download', { jobId, taskId });
+};
+
+export const resumeDownload = async (jobId: string, taskId?: string): Promise<void> => {
+    return await invoke('resume_download', { jobId, taskId });
 };
 
 export const getSettings = async (): Promise<Settings> => {

@@ -21,6 +21,6 @@ pub use models::{
     // Scraper models
     AnimeInfo, Episode, SearchResult, ListEntry, ScrapeError,
     // Download models
-    DownloadJob, DownloadTask, TaskStatus, PauseReason, Segment, SegmentStatus,
+    DownloadJob, DownloadTask, DownloadBuckets, TaskStatus, PauseReason, Segment, SegmentStatus,
 };
 pub use scraper::AnimeScraper;

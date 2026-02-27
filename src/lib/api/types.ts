@@ -41,13 +41,45 @@ export interface DownloadJob {
   tasks: DownloadTask[];
 }
 
+export interface DownloadBuckets {
+  active: DownloadJob[];
+  completed: DownloadJob[];
+}
+
 export interface DownloadTask {
   id: string;
-  status: any; // TaskStatus enum in Rust, needs mapping or just use string/any for now
+  status: RustTaskStatus;
   progress_bytes: number;
   total_bytes: number;
   filename: string;
 }
+
+export type PauseReason = 'UserRequest' | 'LinkExpired' | 'NetworkError' | 'Unknown';
+
+export type RustTaskStatus =
+  | 'Pending'
+  | 'Downloading'
+  | 'Completed'
+  | { Paused: PauseReason }
+  | { Error: string };
+
+export type TaskStatusKind = 'Pending' | 'Downloading' | 'Completed' | 'Paused' | 'Error' | 'Unknown';
+
+export const parseTaskStatus = (status: RustTaskStatus): { kind: TaskStatusKind; detail?: string } => {
+  if (typeof status === 'string') {
+    return { kind: status };
+  }
+
+  if ('Paused' in status) {
+    return { kind: 'Paused', detail: status.Paused };
+  }
+
+  if ('Error' in status) {
+    return { kind: 'Error', detail: status.Error };
+  }
+
+  return { kind: 'Unknown' };
+};
 
 export interface Settings {
   download_dir: string;

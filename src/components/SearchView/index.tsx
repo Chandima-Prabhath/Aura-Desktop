@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import AuraLoader from '../AuraLoader';
 import { searchAnime } from '../../lib/api/tauri';
+import type { AnimeSearchResult } from '../../lib/api/types';
 
 interface SearchViewProps {
     initialQuery?: string;
     onSearch?: (query: string) => void;
-    onNavigate: (view: string, data?: any) => void;
+    onNavigate: (view: string, data?: AnimeSearchResult) => void;
     showToast: (
         message: string,
         type: 'success' | 'warning' | 'error' | 'info'
