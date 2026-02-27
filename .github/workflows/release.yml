@@ -63,6 +63,15 @@ jobs:
           test -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" || (echo "Missing TAURI_SIGNING_PRIVATE_KEY_PASSWORD" && exit 1)
 
           KEY_CONTENT="$TAURI_SIGNING_PRIVATE_KEY"
+          # Remove optional wrapping quotes from secret value.
+          KEY_CONTENT="${KEY_CONTENT%\"}"
+          KEY_CONTENT="${KEY_CONTENT#\"}"
+
+          # Convert escaped newlines (common in CI secrets) to real newlines.
+          if printf '%s' "$KEY_CONTENT" | grep -q '\\n'; then
+            KEY_CONTENT="$(printf '%b' "${KEY_CONTENT//\\n/\\n}")"
+          fi
+
           if ! echo "$KEY_CONTENT" | grep -q "BEGIN"; then
             DECODED="$(printf '%s' "$KEY_CONTENT" | base64 -d 2>/dev/null || true)"
             if echo "$DECODED" | grep -q "BEGIN"; then

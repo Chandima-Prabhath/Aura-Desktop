@@ -32,3 +32,5 @@ scraper-lib/target/
 keystore.properties
 
 target/
+updater.key
+updater.key.pub
